@@ -24,9 +24,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 let CameraView: any = null;
 let useCameraPermissions: any = null;
 if (Platform.OS !== 'web') {
-  const Camera = require('expo-camera');
-  CameraView = Camera.CameraView;
-  useCameraPermissions = Camera.useCameraPermissions;
+  try {
+    const Camera = require('expo-camera');
+    CameraView = Camera.CameraView;
+    useCameraPermissions = Camera.useCameraPermissions;
+  } catch {
+    // Camera not available
+  }
 }
 
 function WebScannerFallback() {

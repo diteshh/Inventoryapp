@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) fetchProfile(session.user.id);
       setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
     // Listen for auth changes
@@ -55,9 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check biometric availability (native only)
     if (Platform.OS !== 'web') {
-      LocalAuthentication.hasHardwareAsync().then(setHasBiometric);
+      LocalAuthentication.hasHardwareAsync()
+        .then(setHasBiometric)
+        .catch(() => setHasBiometric(false));
       // Check if PIN is set
-      SecureStore.getItemAsync('app_pin').then((pin) => setHasPIN(!!pin));
+      SecureStore.getItemAsync('app_pin')
+        .then((pin) => setHasPIN(!!pin))
+        .catch(() => setHasPIN(false));
     }
 
     return () => subscription.unsubscribe();
