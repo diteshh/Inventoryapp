@@ -1,0 +1,86 @@
+import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
+
+export const COLORS = {
+  navy: '#1B2838',
+  navyLight: '#222D3D',
+  navyCard: '#243044',
+  teal: '#00BFA6',
+  tealDark: '#009B86',
+  white: '#FFFFFF',
+  textPrimary: '#F0F4FF',
+  textSecondary: '#8899B4',
+  border: '#2D3F55',
+  destructive: '#EF4444',
+  warning: '#F59E0B',
+  success: '#22C55E',
+};
+
+export const THEME = {
+  light: {
+    background: COLORS.navy,
+    foreground: COLORS.textPrimary,
+    card: COLORS.navyCard,
+    cardForeground: COLORS.textPrimary,
+    popover: COLORS.navyLight,
+    popoverForeground: COLORS.textPrimary,
+    primary: COLORS.teal,
+    primaryForeground: COLORS.navy,
+    secondary: COLORS.navyLight,
+    secondaryForeground: COLORS.textPrimary,
+    muted: COLORS.navyLight,
+    mutedForeground: COLORS.textSecondary,
+    accent: COLORS.teal,
+    accentForeground: COLORS.navy,
+    destructive: COLORS.destructive,
+    border: COLORS.border,
+    input: COLORS.navyLight,
+    ring: COLORS.teal,
+    radius: '0.75rem',
+  },
+  dark: {
+    background: '#111822',
+    foreground: COLORS.textPrimary,
+    card: COLORS.navy,
+    cardForeground: COLORS.textPrimary,
+    popover: '#111822',
+    popoverForeground: COLORS.textPrimary,
+    primary: COLORS.teal,
+    primaryForeground: COLORS.navy,
+    secondary: '#1B2838',
+    secondaryForeground: COLORS.textPrimary,
+    muted: '#1B2838',
+    mutedForeground: COLORS.textSecondary,
+    accent: COLORS.teal,
+    accentForeground: COLORS.navy,
+    destructive: COLORS.destructive,
+    border: COLORS.border,
+    input: '#1B2838',
+    ring: COLORS.teal,
+    radius: '0.75rem',
+  },
+};
+
+export const NAV_THEME: Record<'light' | 'dark', Theme> = {
+  light: {
+    ...DefaultTheme,
+    colors: {
+      background: THEME.light.background,
+      border: THEME.light.border,
+      card: THEME.light.card,
+      notification: THEME.light.destructive,
+      primary: THEME.light.primary,
+      text: THEME.light.foreground,
+    },
+  },
+  dark: {
+    ...DarkTheme,
+    colors: {
+      background: THEME.dark.background,
+      border: THEME.dark.border,
+      card: THEME.dark.card,
+      notification: THEME.dark.destructive,
+      primary: THEME.dark.primary,
+      text: THEME.dark.foreground,
+    },
+  },
+};
