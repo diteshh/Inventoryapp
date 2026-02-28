@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:\\\\Users\\\\dites\\\\orchids-projects\\\\gold-wildcat\\\\frontend\\\\app\\\\\\(tabs\\):*)",
+      "Bash(npx expo:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx:*)",
+      "Bash(curl:*)",
+      "Bash(cp:*)"
+    ]
+  }
+}
