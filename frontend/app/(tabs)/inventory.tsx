@@ -5,6 +5,7 @@ import type { Folder, Item } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
+  ArrowLeft,
   ChevronRight,
   Filter,
   Grid2X2,
@@ -57,6 +58,9 @@ export default function InventoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
 
+  // Global stats (all items across all folders) for root-level display
+  const [globalStats, setGlobalStats] = useState<{ totalQuantity: number; totalValue: number; totalItems: number } | null>(null);
+
   const loadData = useCallback(async () => {
     try {
       const folderId = currentFolder?.id ?? null;
@@ -98,6 +102,22 @@ export default function InventoryScreen() {
       }
 
       const { data: itemsData } = await query;
+
+      // At root level, fetch global stats across ALL items (not just unfiled)
+      if (!folderId) {
+        const { data: allItems } = await supabase
+          .from('items')
+          .select('quantity, sell_price, cost_price')
+          .eq('status', 'active');
+        const all = (allItems ?? []) as Pick<Item, 'quantity' | 'sell_price' | 'cost_price'>[];
+        setGlobalStats({
+          totalItems: all.length,
+          totalQuantity: all.reduce((acc, i) => acc + (i.quantity || 0), 0),
+          totalValue: all.reduce((acc, i) => acc + (i.quantity || 0) * (i.sell_price ?? i.cost_price ?? 0), 0),
+        });
+      } else {
+        setGlobalStats(null);
+      }
 
       setFolders(enhancedFolders);
       let filteredItems = (itemsData ?? []) as Item[];
@@ -168,9 +188,15 @@ export default function InventoryScreen() {
   };
 
   const totalFolders = folders.length;
-  const totalItems = items.length;
-  const totalQuantity = items.reduce((acc, i) => acc + (i.quantity || 0), 0) + folders.reduce((acc, f) => acc + (f.unit_count || 0), 0);
-  const totalValue = items.reduce((acc, i) => acc + ((i.quantity || 0) * (i.sell_price || 0)), 0) + folders.reduce((acc, f) => acc + (f.total_value || 0), 0);
+  // At root: show global stats across ALL items; inside a folder: show folder-level stats
+  const isRoot = !currentFolder;
+  const totalItems = isRoot && globalStats ? globalStats.totalItems : items.length;
+  const totalQuantity = isRoot && globalStats
+    ? globalStats.totalQuantity
+    : items.reduce((acc, i) => acc + (i.quantity || 0), 0) + folders.reduce((acc, f) => acc + (f.unit_count || 0), 0);
+  const totalValue = isRoot && globalStats
+    ? globalStats.totalValue
+    : items.reduce((acc, i) => acc + (i.quantity || 0) * (i.sell_price ?? i.cost_price ?? 0), 0) + folders.reduce((acc, f) => acc + (f.total_value || 0), 0);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -234,9 +260,38 @@ export default function InventoryScreen() {
           ) : null}
         </View>
 
-        {/* Breadcrumbs */}
-        {(currentFolder || breadcrumbs.length > 0) && (
-          <View className="mt-3 flex-row items-center flex-wrap gap-1">
+        {/* Folder Navigation Bar */}
+        {currentFolder && (
+          <TouchableOpacity
+            onPress={() => {
+              if (breadcrumbs.length > 0) {
+                // Go back to parent folder
+                const parent = breadcrumbs[breadcrumbs.length - 1];
+                setBreadcrumbs(breadcrumbs.slice(0, -1));
+                setCurrentFolder(parent);
+              } else {
+                // Go back to root
+                setCurrentFolder(null);
+                setBreadcrumbs([]);
+              }
+              setLoading(true);
+            }}
+            className="mt-3 flex-row items-center rounded-xl px-3 py-3"
+            style={{ backgroundColor: colors.accentMuted }}>
+            <ArrowLeft color={colors.accent} size={18} />
+            <Text className="ml-2 text-sm font-semibold" style={{ color: colors.accent }}>
+              {breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].name : 'All Items'}
+            </Text>
+            <ChevronRight color={colors.textSecondary} size={14} style={{ marginHorizontal: 4 }} />
+            <Text className="text-sm font-bold flex-1" numberOfLines={1} style={{ color: colors.textPrimary }}>
+              {currentFolder.name}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Breadcrumbs (for deep navigation) */}
+        {breadcrumbs.length > 1 && (
+          <View className="mt-2 flex-row items-center flex-wrap gap-1">
             <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
               <Home color={colors.textSecondary} size={14} />
             </TouchableOpacity>
