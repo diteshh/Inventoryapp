@@ -28,3 +28,7 @@ Thumbs.db
 
 # Supabase local/temp
 supabase/.temp/
+
+# Apple keys
+*.p8
+.keys/
