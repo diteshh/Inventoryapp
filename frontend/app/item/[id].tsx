@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { ActivityLog, Folder, Item, Tag } from '@/lib/types';
 import { formatCurrency, formatDate, formatRelativeTime, getActionLabel, getPhotoUrl, logActivity } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -42,6 +43,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [item, setItem] = useState<Item | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [folder, setFolder] = useState<Folder | null>(null);
@@ -121,16 +123,16 @@ export default function ItemDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
-        <ActivityIndicator color={COLORS.teal} size="large" />
+      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.accent} size="large" />
       </SafeAreaView>
     );
   }
 
   if (!item) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
-        <Text className="text-white">Item not found</Text>
+      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <Text style={{ color: colors.textPrimary }}>Item not found</Text>
       </SafeAreaView>
     );
   }
@@ -138,22 +140,22 @@ export default function ItemDetailScreen() {
   const photos = item.photos ?? [];
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
         <View className="flex-row gap-2">
           <TouchableOpacity
             onPress={() => router.push(`/item/edit/${item.id}`)}
             className="flex-row items-center gap-1.5 rounded-xl px-3 py-2"
-            style={{ backgroundColor: COLORS.navyCard }}>
-            <Edit2 color={COLORS.teal} size={16} />
-            <Text className="text-sm font-medium" style={{ color: COLORS.teal }}>Edit</Text>
+            style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+            <Edit2 color={colors.accent} size={16} />
+            <Text className="text-sm font-medium" style={{ color: colors.accent }}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={deleteItem} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-            <Trash2 color={COLORS.destructive} size={18} />
+          <TouchableOpacity onPress={deleteItem} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+            <Trash2 color={colors.destructive} size={18} />
           </TouchableOpacity>
         </View>
       </View>
@@ -187,7 +189,7 @@ export default function ItemDetailScreen() {
                       width: idx === photoIndex ? 18 : 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: idx === photoIndex ? COLORS.teal : 'rgba(255,255,255,0.4)',
+                      backgroundColor: idx === photoIndex ? colors.accent : 'rgba(255,255,255,0.4)',
                     }}
                   />
                 ))}
@@ -195,23 +197,23 @@ export default function ItemDetailScreen() {
             )}
           </View>
         ) : (
-          <View className="mx-5 mb-2 items-center justify-center rounded-2xl" style={{ height: 180, backgroundColor: COLORS.navyCard }}>
-            <Package color={COLORS.textSecondary} size={48} />
+          <View className="mx-5 mb-2 items-center justify-center rounded-2xl" style={{ height: 180, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+            <Package color={colors.textSecondary} size={48} />
           </View>
         )}
 
         <View className="px-5 pt-4">
           {/* Title & SKU */}
-          <Text className="text-2xl font-bold text-white" style={{ fontWeight: '800' }} numberOfLines={2}>
+          <Text className="text-2xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }} numberOfLines={2}>
             {item.name}
           </Text>
           {item.sku && (
-            <Text className="mt-1 text-sm font-mono" style={{ color: COLORS.textSecondary }}>
+            <Text className="mt-1 text-sm font-mono" style={{ color: colors.textSecondary }}>
               SKU: {item.sku}
             </Text>
           )}
           {item.barcode && (
-            <Text className="text-xs font-mono mt-0.5" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs font-mono mt-0.5" style={{ color: colors.textSecondary }}>
               Barcode: {item.barcode}
             </Text>
           )}
@@ -223,9 +225,9 @@ export default function ItemDetailScreen() {
                 <View
                   key={tag.id}
                   className="flex-row items-center gap-1 rounded-full px-2.5 py-1"
-                  style={{ backgroundColor: `${tag.colour ?? COLORS.teal}22` }}>
-                  <TagIcon color={tag.colour ?? COLORS.teal} size={10} />
-                  <Text className="text-xs font-medium" style={{ color: tag.colour ?? COLORS.teal }}>
+                  style={{ backgroundColor: `${tag.colour ?? colors.accent}22` }}>
+                  <TagIcon color={tag.colour ?? colors.accent} size={10} />
+                  <Text className="text-xs font-medium" style={{ color: tag.colour ?? colors.accent }}>
                     {tag.name}
                   </Text>
                 </View>
@@ -236,15 +238,15 @@ export default function ItemDetailScreen() {
           {/* Quantity Card */}
           <View
             className="mt-5 rounded-2xl p-4"
-            style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+            style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
             <View className="flex-row items-center justify-between">
               <View>
-                <Text className="text-xs font-medium" style={{ color: COLORS.textSecondary }}>Current Stock</Text>
-                <Text className="text-4xl font-bold text-white mt-1" style={{ fontWeight: '900' }}>
+                <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>Current Stock</Text>
+                <Text className="text-4xl font-bold mt-1" style={{ color: colors.textPrimary, fontWeight: '900' }}>
                   {item.quantity}
                 </Text>
                 {item.min_quantity > 0 && (
-                  <Text className="text-xs mt-1" style={{ color: COLORS.textSecondary }}>
+                  <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
                     Min: {item.min_quantity}
                   </Text>
                 )}
@@ -254,26 +256,26 @@ export default function ItemDetailScreen() {
                 <TouchableOpacity
                   onPress={() => setShowQuantityModal(true)}
                   className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
-                  style={{ backgroundColor: COLORS.teal }}>
-                  <BarChart2 color={COLORS.navy} size={16} />
-                  <Text className="text-sm font-semibold" style={{ color: COLORS.navy }}>Adjust</Text>
+                  style={{ backgroundColor: colors.accent }}>
+                  <BarChart2 color={colors.accentOnAccent} size={16} />
+                  <Text className="text-sm font-semibold" style={{ color: colors.accentOnAccent }}>Adjust</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
           {/* Details Grid */}
-          <View className="mt-4 rounded-2xl overflow-hidden" style={{ backgroundColor: COLORS.navyCard }}>
-            <SectionTitle title="Details" />
-            <DetailRow label="Description" value={item.description} />
-            <DetailRow label="Location" value={item.location} icon={<MapPin color={COLORS.textSecondary} size={14} />} />
-            <DetailRow label="Cost Price" value={formatCurrency(item.cost_price)} />
-            <DetailRow label="Sell Price" value={formatCurrency(item.sell_price)} />
-            <DetailRow label="Weight" value={item.weight ? `${item.weight} kg` : null} />
-            <DetailRow label="Folder" value={folder?.name} icon={<FolderOpen color={COLORS.textSecondary} size={14} />} />
-            <DetailRow label="Notes" value={item.notes} />
-            <DetailRow label="Added" value={formatDate(item.created_at)} />
-            <DetailRow label="Updated" value={formatRelativeTime(item.updated_at)} isLast />
+          <View className="mt-4 rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+            <SectionTitle title="Details" colors={colors} />
+            <DetailRow label="Description" value={item.description} colors={colors} />
+            <DetailRow label="Location" value={item.location} icon={<MapPin color={colors.textSecondary} size={14} />} colors={colors} />
+            <DetailRow label="Cost Price" value={formatCurrency(item.cost_price)} colors={colors} />
+            <DetailRow label="Sell Price" value={formatCurrency(item.sell_price)} colors={colors} />
+            <DetailRow label="Weight" value={item.weight ? `${item.weight} kg` : null} colors={colors} />
+            <DetailRow label="Folder" value={folder?.name} icon={<FolderOpen color={colors.textSecondary} size={14} />} colors={colors} />
+            <DetailRow label="Notes" value={item.notes} colors={colors} />
+            <DetailRow label="Added" value={formatDate(item.created_at)} colors={colors} />
+            <DetailRow label="Updated" value={formatRelativeTime(item.updated_at)} isLast colors={colors} />
           </View>
 
           {/* Actions */}
@@ -281,48 +283,48 @@ export default function ItemDetailScreen() {
             <TouchableOpacity
               onPress={() => router.push(`/pick-list/add-item?item_id=${item.id}`)}
               className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
-              style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-              <ClipboardList color={COLORS.teal} size={18} />
-              <Text className="font-semibold" style={{ color: COLORS.teal }}>Add to Pick List</Text>
+              style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+              <ClipboardList color={colors.accent} size={18} />
+              <Text className="font-semibold" style={{ color: colors.accent }}>Add to Pick List</Text>
             </TouchableOpacity>
           </View>
 
           {/* Activity History */}
           {activity.length > 0 && (
             <View className="mt-6">
-              <Text className="mb-3 text-base font-semibold text-white">Item History</Text>
+              <Text className="mb-3 text-base font-semibold" style={{ color: colors.textPrimary }}>Item History</Text>
                 {activity.map((log) => {
                   const details = log.details as any;
                   const isPicked = log.action_type === 'item_picked';
                   return (
                     <View key={log.id} className="mb-2 flex-row items-start gap-3">
-                      <View className="mt-1 items-center justify-center rounded-lg p-1.5" style={{ backgroundColor: `${COLORS.teal}22` }}>
-                        {isPicked ? <ClipboardList color={COLORS.teal} size={12} /> : <Activity color={COLORS.teal} size={12} />}
+                      <View className="mt-1 items-center justify-center rounded-lg p-1.5" style={{ backgroundColor: colors.accentMuted }}>
+                        {isPicked ? <ClipboardList color={colors.accent} size={12} /> : <Activity color={colors.accent} size={12} />}
                       </View>
                       <View className="flex-1">
-                        <Text className="text-sm font-medium text-white">
+                        <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>
                           {isPicked ? `Picked ${details?.quantity} units` : getActionLabel(log.action_type)}
                         </Text>
                         {isPicked ? (
-                          <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+                          <Text className="text-xs" style={{ color: colors.textSecondary }}>
                             For: {details?.pick_list_name} • Left: {details?.inventory_remaining}
                           </Text>
                         ) : (
                           <>
                             {details?.reason && (
-                              <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+                              <Text className="text-xs" style={{ color: colors.textSecondary }}>
                                 {details.reason}
                               </Text>
                             )}
                             {details?.adjustment != null && (
-                              <Text className="text-xs" style={{ color: details.adjustment > 0 ? COLORS.success : COLORS.destructive }}>
+                              <Text className="text-xs" style={{ color: details.adjustment > 0 ? colors.success : colors.destructive }}>
                                 {details.adjustment > 0 ? '+' : ''}{details.adjustment} units
                               </Text>
                             )}
                           </>
                         )}
                       </View>
-                      <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+                      <Text className="text-xs" style={{ color: colors.textSecondary }}>
                         {formatRelativeTime(log.timestamp)}
                       </Text>
                     </View>
@@ -335,13 +337,13 @@ export default function ItemDetailScreen() {
 
       {/* Quantity Adjust Modal */}
       <Modal visible={showQuantityModal} animationType="slide" transparent>
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: COLORS.navyCard }}>
-            <Text className="mb-4 text-lg font-bold text-white">Adjust Quantity</Text>
-            <Text className="mb-4 text-sm" style={{ color: COLORS.textSecondary }}>
-              Current: <Text className="font-bold text-white">{item.quantity}</Text>
+        <View className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface }}>
+            <Text className="mb-4 text-lg font-bold" style={{ color: colors.textPrimary }}>Adjust Quantity</Text>
+            <Text className="mb-4 text-sm" style={{ color: colors.textSecondary }}>
+              Current: <Text className="font-bold" style={{ color: colors.textPrimary }}>{item.quantity}</Text>
               {qtyAdjust !== 0 && (
-                <Text style={{ color: qtyAdjust > 0 ? COLORS.success : COLORS.destructive }}>
+                <Text style={{ color: qtyAdjust > 0 ? colors.success : colors.destructive }}>
                   {' '}→ {Math.max(0, item.quantity + qtyAdjust)}
                 </Text>
               )}
@@ -350,24 +352,24 @@ export default function ItemDetailScreen() {
               <TouchableOpacity
                   onPress={() => { setQtyAdjust(q => q - 1); impactLight(); }}
                 className="items-center justify-center rounded-2xl"
-                style={{ width: 52, height: 52, backgroundColor: `${COLORS.destructive}22`, borderWidth: 1, borderColor: `${COLORS.destructive}44` }}>
-                <Minus color={COLORS.destructive} size={22} />
+                style={{ width: 52, height: 52, backgroundColor: colors.destructiveMuted, borderWidth: 1, borderColor: `${colors.destructive}44` }}>
+                <Minus color={colors.destructive} size={22} />
               </TouchableOpacity>
-              <Text className="w-20 text-center text-4xl font-bold text-white" style={{ fontWeight: '800' }}>
+              <Text className="w-20 text-center text-4xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }}>
                 {qtyAdjust > 0 ? `+${qtyAdjust}` : qtyAdjust}
               </Text>
               <TouchableOpacity
                   onPress={() => { setQtyAdjust(q => q + 1); impactLight(); }}
                 className="items-center justify-center rounded-2xl"
-                style={{ width: 52, height: 52, backgroundColor: `${COLORS.teal}22`, borderWidth: 1, borderColor: `${COLORS.teal}44` }}>
-                <Plus color={COLORS.teal} size={22} />
+                style={{ width: 52, height: 52, backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: `${colors.accent}44` }}>
+                <Plus color={colors.accent} size={22} />
               </TouchableOpacity>
             </View>
             <TextInput
-              className="mb-5 rounded-xl px-4 py-3.5 text-sm text-white"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+              className="mb-5 rounded-xl px-4 py-3.5 text-sm"
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
               placeholder="Reason (optional)"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={qtyReason}
               onChangeText={setQtyReason}
             />
@@ -375,18 +377,18 @@ export default function ItemDetailScreen() {
               <TouchableOpacity
                 onPress={() => { setShowQuantityModal(false); setQtyAdjust(0); }}
                 className="flex-1 items-center justify-center rounded-xl py-3.5"
-                style={{ backgroundColor: COLORS.navy }}>
-                <Text className="font-semibold" style={{ color: COLORS.textSecondary }}>Cancel</Text>
+                style={{ backgroundColor: colors.background }}>
+                <Text className="font-semibold" style={{ color: colors.textSecondary }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={adjustQuantity}
                 disabled={qtyAdjust === 0 || adjusting}
                 className="flex-1 items-center justify-center rounded-xl py-3.5"
-                style={{ backgroundColor: qtyAdjust !== 0 ? COLORS.teal : COLORS.border }}>
+                style={{ backgroundColor: qtyAdjust !== 0 ? colors.accent : colors.border }}>
                 {adjusting ? (
-                  <ActivityIndicator color={COLORS.navy} size="small" />
+                  <ActivityIndicator color={colors.accentOnAccent} size="small" />
                 ) : (
-                  <Text className="font-bold" style={{ color: qtyAdjust !== 0 ? COLORS.navy : COLORS.textSecondary }}>
+                  <Text className="font-bold" style={{ color: qtyAdjust !== 0 ? colors.accentOnAccent : colors.textSecondary }}>
                     Confirm
                   </Text>
                 )}
@@ -399,10 +401,10 @@ export default function ItemDetailScreen() {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
+function SectionTitle({ title, colors }: { title: string; colors: ThemeColors }) {
   return (
-    <View className="border-b px-4 py-3" style={{ borderBottomColor: COLORS.border }}>
-      <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: COLORS.textSecondary }}>
+    <View className="border-b px-4 py-3" style={{ borderBottomColor: colors.border }}>
+      <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.textSecondary }}>
         {title}
       </Text>
     </View>
@@ -414,21 +416,23 @@ function DetailRow({
   value,
   icon,
   isLast,
+  colors,
 }: {
   label: string;
   value: string | null | undefined;
   icon?: React.ReactNode;
   isLast?: boolean;
+  colors: ThemeColors;
 }) {
   if (!value) return null;
   return (
     <View
       className="flex-row items-start px-4 py-3"
-      style={{ borderBottomWidth: isLast ? 0 : 1, borderBottomColor: COLORS.border }}>
-      <Text className="w-28 text-sm" style={{ color: COLORS.textSecondary }}>{label}</Text>
+      style={{ borderBottomWidth: isLast ? 0 : 1, borderBottomColor: colors.border }}>
+      <Text className="w-28 text-sm" style={{ color: colors.textSecondary }}>{label}</Text>
       <View className="flex-1 flex-row items-center gap-1.5">
         {icon}
-        <Text className="flex-1 text-sm text-white">{value}</Text>
+        <Text className="flex-1 text-sm" style={{ color: colors.textPrimary }}>{value}</Text>
       </View>
     </View>
   );

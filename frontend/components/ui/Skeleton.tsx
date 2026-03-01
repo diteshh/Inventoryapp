@@ -1,4 +1,4 @@
-import { COLORS } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import React from 'react';
 import { View, Animated } from 'react-native';
 
@@ -10,6 +10,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 16, borderRadius = 8, style }: SkeletonProps) {
+  const { colors } = useTheme();
   const opacity = React.useRef(new Animated.Value(0.4)).current;
 
   React.useEffect(() => {
@@ -38,7 +39,7 @@ export function Skeleton({ width = '100%', height = 16, borderRadius = 8, style 
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: COLORS.navyCard,
+          backgroundColor: colors.skeleton,
           opacity,
         },
         style,
@@ -48,10 +49,11 @@ export function Skeleton({ width = '100%', height = 16, borderRadius = 8, style 
 }
 
 export function CardSkeleton() {
+  const { colors } = useTheme();
   return (
     <View
       className="mb-3 rounded-2xl p-4"
-      style={{ backgroundColor: COLORS.navyCard }}>
+      style={{ backgroundColor: colors.surface }}>
       <View className="flex-row items-center gap-3">
         <Skeleton width={48} height={48} borderRadius={12} />
         <View className="flex-1 gap-2">
@@ -64,10 +66,11 @@ export function CardSkeleton() {
 }
 
 export function ItemGridSkeleton() {
+  const { colors } = useTheme();
   return (
     <View
       className="m-1.5 flex-1 rounded-2xl p-3"
-      style={{ backgroundColor: COLORS.navyCard }}>
+      style={{ backgroundColor: colors.surface }}>
       <Skeleton width="100%" height={120} borderRadius={12} />
       <View className="mt-3 gap-2">
         <Skeleton width="80%" height={13} />

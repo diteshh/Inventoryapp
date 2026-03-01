@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { Item, PickList, PickListComment, PickListItem } from '@/lib/types';
 import {
   formatCurrency,
@@ -52,6 +53,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 export default function PickListDetailScreen() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [pickList, setPickList] = useState<PickList | null>(null);
   const [items, setItems] = useState<PickListItemWithItem[]>([]);
   const [comments, setComments] = useState<PickListComment[]>([]);
@@ -128,7 +130,7 @@ export default function PickListDetailScreen() {
 
   const pickItem = async (pli: PickListItemWithItem, qty: number) => {
     if (!user || !pickList) return;
-    
+
     // Call the atomic pick_item RPC function
     const { data, error } = await supabase.rpc('pick_item', {
       p_pick_list_item_id: pli.id,
@@ -191,18 +193,18 @@ export default function PickListDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
-        <ActivityIndicator color={COLORS.teal} size="large" />
+      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.accent} size="large" />
       </SafeAreaView>
     );
   }
 
   if (!pickList) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
-        <Text style={{ color: COLORS.textSecondary }}>Pick list not found.</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 px-4 py-2 rounded-xl" style={{ backgroundColor: COLORS.navyCard }}>
-          <Text style={{ color: COLORS.teal }}>Go back</Text>
+      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <Text style={{ color: colors.textSecondary }}>Pick list not found.</Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4 px-4 py-2 rounded-xl" style={{ backgroundColor: colors.surface }}>
+          <Text style={{ color: colors.accent }}>Go back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -211,17 +213,17 @@ export default function PickListDetailScreen() {
   const pickedCount = items.filter((i) => i.quantity_picked >= i.quantity_requested).length;
   const progressPct = items.length > 0 ? (pickedCount / items.length) * 100 : 0;
   const nextStatuses = STATUS_TRANSITIONS[pickList.status] ?? [];
-  const statusColor = getPickListStatusColor(pickList.status);
+  const statusColor = getPickListStatusColor(pickList.status, colors);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View className="px-5 py-3 flex-row items-center justify-between">
-          <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-            <ArrowLeft color={COLORS.textPrimary} size={20} />
+          <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+            <ArrowLeft color={colors.textPrimary} size={20} />
           </TouchableOpacity>
-          <Text className="text-base font-bold text-white flex-1 mx-3" numberOfLines={1}>
+          <Text className="text-base font-bold flex-1 mx-3" numberOfLines={1} style={{ color: colors.textPrimary }}>
             {pickList.name}
           </Text>
           <View className="flex-row items-center gap-2">
@@ -229,23 +231,23 @@ export default function PickListDetailScreen() {
               <TouchableOpacity
                 onPress={() => setPickingMode(!pickingMode)}
                 className="rounded-xl px-3 py-2"
-                style={{ backgroundColor: pickingMode ? COLORS.teal : COLORS.navyCard }}>
-                <Text className="text-xs font-bold" style={{ color: pickingMode ? COLORS.navy : COLORS.teal }}>
+                style={{ backgroundColor: pickingMode ? colors.accent : colors.surface }}>
+                <Text className="text-xs font-bold" style={{ color: pickingMode ? colors.accentOnAccent : colors.accent }}>
                   {pickingMode ? 'Stop' : 'Pick'}
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity onPress={showOptions} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-              <MoreVertical color={COLORS.textPrimary} size={18} />
+            <TouchableOpacity onPress={showOptions} className="rounded-xl p-2" style={{ backgroundColor: colors.surface }}>
+              <MoreVertical color={colors.textPrimary} size={18} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Info Strip */}
-        <View className="mx-5 mb-4 rounded-2xl p-4" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+        <View className="mx-5 mb-4 rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.border : colors.borderLight, ...getCardShadow(isDark) }}>
           <View className="flex-row items-center justify-between mb-3">
             <StatusBadge status={pickList.status} size="sm" />
-            <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {formatRelativeTime(pickList.updated_at)}
             </Text>
           </View>
@@ -254,24 +256,24 @@ export default function PickListDetailScreen() {
           {items.length > 0 && (
             <View className="mb-3">
               <View className="flex-row justify-between mb-1.5">
-                <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+                <Text className="text-xs" style={{ color: colors.textSecondary }}>
                   {pickedCount} / {items.length} items picked
                 </Text>
-                <Text className="text-xs font-semibold" style={{ color: progressPct === 100 ? COLORS.success : COLORS.teal }}>
+                <Text className="text-xs font-semibold" style={{ color: progressPct === 100 ? colors.success : colors.accent }}>
                   {Math.round(progressPct)}%
                 </Text>
               </View>
-              <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: COLORS.navy }}>
+              <View className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.background }}>
                 <View
                   className="h-2 rounded-full"
-                  style={{ width: `${progressPct}%`, backgroundColor: progressPct === 100 ? COLORS.success : COLORS.teal }}
+                  style={{ width: `${progressPct}%`, backgroundColor: progressPct === 100 ? colors.success : colors.accent }}
                 />
               </View>
             </View>
           )}
 
           {pickList.notes ? (
-            <Text className="text-xs mb-3" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
               {pickList.notes}
             </Text>
           ) : null}
@@ -280,7 +282,7 @@ export default function PickListDetailScreen() {
           {nextStatuses.length > 0 && (
             <View className="flex-row gap-2">
               {nextStatuses.map((ns) => {
-                const nsColor = getPickListStatusColor(ns);
+                const nsColor = getPickListStatusColor(ns, colors);
                 const isForward = ['ready_to_pick', 'in_progress', 'partially_complete', 'complete'].indexOf(ns) >
                   ['ready_to_pick', 'in_progress', 'partially_complete', 'complete'].indexOf(pickList.status);
                 return (
@@ -289,7 +291,7 @@ export default function PickListDetailScreen() {
                     onPress={() => updateStatus(ns)}
                     disabled={statusUpdating}
                     className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 px-3"
-                    style={{ backgroundColor: isForward ? `${nsColor}22` : COLORS.navy, borderWidth: 1, borderColor: isForward ? `${nsColor}55` : COLORS.border }}>
+                    style={{ backgroundColor: isForward ? `${nsColor}22` : colors.background, borderWidth: 1, borderColor: isForward ? `${nsColor}55` : colors.border }}>
                     {statusUpdating ? (
                       <ActivityIndicator size="small" color={nsColor} />
                     ) : (
@@ -308,14 +310,14 @@ export default function PickListDetailScreen() {
         </View>
 
         {/* Tabs */}
-        <View className="mx-5 mb-3 flex-row rounded-xl p-1" style={{ backgroundColor: COLORS.navyCard }}>
+        <View className="mx-5 mb-3 flex-row rounded-xl p-1" style={{ backgroundColor: colors.surface }}>
           {(['items', 'comments'] as const).map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
               className="flex-1 items-center rounded-lg py-2"
-              style={{ backgroundColor: activeTab === tab ? COLORS.teal : 'transparent' }}>
-              <Text className="text-sm font-semibold" style={{ color: activeTab === tab ? COLORS.navy : COLORS.textSecondary }}>
+              style={{ backgroundColor: activeTab === tab ? colors.accent : 'transparent' }}>
+              <Text className="text-sm font-semibold" style={{ color: activeTab === tab ? colors.accentOnAccent : colors.textSecondary }}>
                 {tab === 'items' ? `Items (${items.length})` : `Comments (${comments.length})`}
               </Text>
             </TouchableOpacity>
@@ -331,25 +333,25 @@ export default function PickListDetailScreen() {
               showsVerticalScrollIndicator={false}
                 ListHeaderComponent={
                   pickList.status === 'complete' ? (
-                    <View className="mb-6 rounded-2xl p-4" style={{ backgroundColor: `${COLORS.teal}11`, borderWidth: 1, borderColor: `${COLORS.teal}33` }}>
+                    <View className="mb-6 rounded-2xl p-4" style={{ backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: `${colors.accent}33` }}>
                       <View className="flex-row items-center gap-2 mb-3">
-                        <CheckCircle size={16} color={COLORS.success} />
-                        <Text className="text-sm font-bold text-white">Inventory Deduction Summary</Text>
+                        <CheckCircle size={16} color={colors.success} />
+                        <Text className="text-sm font-bold" style={{ color: colors.textPrimary }}>Inventory Deduction Summary</Text>
                       </View>
                       <View className="flex-row items-center justify-between mb-2 px-1">
-                        <Text className="text-[10px] font-bold flex-1" style={{ color: COLORS.textSecondary }}>ITEM NAME</Text>
-                        <Text className="text-[10px] font-bold w-14 text-center" style={{ color: COLORS.textSecondary }}>PICKED</Text>
-                        <Text className="text-[10px] font-bold w-16 text-right" style={{ color: COLORS.textSecondary }}>REMAINING</Text>
+                        <Text className="text-[10px] font-bold flex-1" style={{ color: colors.textSecondary }}>ITEM NAME</Text>
+                        <Text className="text-[10px] font-bold w-14 text-center" style={{ color: colors.textSecondary }}>PICKED</Text>
+                        <Text className="text-[10px] font-bold w-16 text-right" style={{ color: colors.textSecondary }}>REMAINING</Text>
                       </View>
                       {items.filter(pli => pli.quantity_picked > 0).map(pli => (
-                        <View key={pli.id} className="flex-row items-center justify-between py-2 border-t" style={{ borderColor: `${COLORS.border}33` }}>
-                          <Text className="text-xs text-white flex-1 pr-2" numberOfLines={1}>{pli.items?.name ?? 'Unknown'}</Text>
-                          <Text className="text-xs text-white font-bold w-14 text-center">{pli.quantity_picked}</Text>
-                          <Text className="text-xs font-bold w-16 text-right" style={{ color: COLORS.teal }}>{pli.items?.quantity ?? 0}</Text>
+                        <View key={pli.id} className="flex-row items-center justify-between py-2 border-t" style={{ borderColor: `${colors.border}33` }}>
+                          <Text className="text-xs flex-1 pr-2" numberOfLines={1} style={{ color: colors.textPrimary }}>{pli.items?.name ?? 'Unknown'}</Text>
+                          <Text className="text-xs font-bold w-14 text-center" style={{ color: colors.textPrimary }}>{pli.quantity_picked}</Text>
+                          <Text className="text-xs font-bold w-16 text-right" style={{ color: colors.accent }}>{pli.items?.quantity ?? 0}</Text>
                         </View>
                       ))}
-                      <View className="mt-3 pt-3 border-t" style={{ borderColor: `${COLORS.teal}33` }}>
-                        <Text className="text-[10px] italic text-center" style={{ color: COLORS.textSecondary }}>
+                      <View className="mt-3 pt-3 border-t" style={{ borderColor: `${colors.accent}33` }}>
+                        <Text className="text-[10px] italic text-center" style={{ color: colors.textSecondary }}>
                           * All quantities were automatically deducted from main inventory.
                         </Text>
                       </View>
@@ -358,9 +360,9 @@ export default function PickListDetailScreen() {
                     <TouchableOpacity
                       onPress={() => router.push(`/pick-list/add-item?pickListId=${id}`)}
                       className="mb-3 flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
-                      style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: `${COLORS.teal}44`, borderStyle: 'dashed' }}>
-                      <Plus color={COLORS.teal} size={16} />
-                      <Text className="text-sm font-semibold" style={{ color: COLORS.teal }}>
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
+                      <Plus color={colors.accent} size={16} />
+                      <Text className="text-sm font-semibold" style={{ color: colors.accent }}>
                         Add Items
                       </Text>
                     </TouchableOpacity>
@@ -368,8 +370,8 @@ export default function PickListDetailScreen() {
                 }
               ListEmptyComponent={
                 <View className="items-center py-12">
-                  <ClipboardList color={COLORS.textSecondary} size={32} />
-                  <Text className="mt-3 text-sm" style={{ color: COLORS.textSecondary }}>
+                  <ClipboardList color={colors.textSecondary} size={32} />
+                  <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
                     No items in this pick list
                   </Text>
                 </View>
@@ -381,6 +383,8 @@ export default function PickListDetailScreen() {
                   canEdit={pickList.status !== 'complete'}
                   onPick={(qty) => pickItem(pli, qty)}
                   onRemove={() => removePickListItem(pli.id)}
+                  colors={colors}
+                  isDark={isDark}
                 />
               )}
             />
@@ -396,8 +400,8 @@ export default function PickListDetailScreen() {
               onContentSizeChange={() => commentsRef.current?.scrollToEnd({ animated: true })}
               ListEmptyComponent={
                 <View className="items-center py-12">
-                  <MessageCircle color={COLORS.textSecondary} size={32} />
-                  <Text className="mt-3 text-sm" style={{ color: COLORS.textSecondary }}>
+                  <MessageCircle color={colors.textSecondary} size={32} />
+                  <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
                     No comments yet
                   </Text>
                 </View>
@@ -406,14 +410,14 @@ export default function PickListDetailScreen() {
                 <View
                   className="mb-2 rounded-xl p-3"
                   style={{
-                    backgroundColor: comment.user_id === user?.id ? `${COLORS.teal}22` : COLORS.navyCard,
+                    backgroundColor: comment.user_id === user?.id ? colors.accentMuted : colors.surface,
                     borderWidth: 1,
-                    borderColor: comment.user_id === user?.id ? `${COLORS.teal}44` : COLORS.border,
+                    borderColor: comment.user_id === user?.id ? `${colors.accent}44` : colors.border,
                     alignSelf: comment.user_id === user?.id ? 'flex-end' : 'flex-start',
                     maxWidth: '85%',
                   }}>
-                  <Text className="text-sm text-white">{comment.content}</Text>
-                  <Text className="mt-1 text-xs" style={{ color: COLORS.textSecondary }}>
+                  <Text className="text-sm" style={{ color: colors.textPrimary }}>{comment.content}</Text>
+                  <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
                     {formatRelativeTime(comment.created_at)}
                   </Text>
                 </View>
@@ -422,11 +426,12 @@ export default function PickListDetailScreen() {
             {/* Comment input */}
             <View
               className="mx-5 mb-2 flex-row items-center gap-2 rounded-2xl px-4 py-2"
-              style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
               <TextInput
-                className="flex-1 text-sm text-white py-1.5"
+                className="flex-1 text-sm py-1.5"
+                style={{ color: colors.textPrimary }}
                 placeholder="Add a comment..."
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 value={commentText}
                 onChangeText={setCommentText}
                 multiline
@@ -436,11 +441,11 @@ export default function PickListDetailScreen() {
                 onPress={sendComment}
                 disabled={!commentText.trim() || sendingComment}
                 className="rounded-xl p-2"
-                style={{ backgroundColor: commentText.trim() ? COLORS.teal : COLORS.navy }}>
+                style={{ backgroundColor: commentText.trim() ? colors.accent : colors.background }}>
                 {sendingComment ? (
-                  <ActivityIndicator size="small" color={COLORS.navy} />
+                  <ActivityIndicator size="small" color={colors.accentOnAccent} />
                 ) : (
-                  <Send size={16} color={commentText.trim() ? COLORS.navy : COLORS.textSecondary} />
+                  <Send size={16} color={commentText.trim() ? colors.accentOnAccent : colors.textSecondary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -457,23 +462,27 @@ function PickListItemRow({
   canEdit,
   onPick,
   onRemove,
+  colors,
+  isDark,
 }: {
   pli: PickListItemWithItem;
   pickingMode: boolean;
   canEdit: boolean;
   onPick: (qty: number) => void;
   onRemove: () => void;
+  colors: ThemeColors;
+  isDark: boolean;
 }) {
   const isPicked = pli.quantity_picked >= pli.quantity_requested;
   const isPartial = pli.quantity_picked > 0 && !isPicked;
 
-  const rowBg = isPicked ? `${COLORS.success}11` : isPartial ? `${COLORS.warning}11` : COLORS.navyCard;
-  const borderColor = isPicked ? `${COLORS.success}44` : isPartial ? `${COLORS.warning}44` : COLORS.border;
+  const rowBg = isPicked ? colors.successMuted : isPartial ? colors.warningMuted : colors.surface;
+  const borderColor = isPicked ? `${colors.success}44` : isPartial ? `${colors.warning}44` : isDark ? colors.borderLight : colors.border;
 
   return (
     <View
       className="mb-3 rounded-2xl p-4"
-      style={{ backgroundColor: rowBg, borderWidth: 1, borderColor }}>
+      style={{ backgroundColor: rowBg, borderWidth: 1, borderColor, ...(!isPicked && !isPartial ? getCardShadow(isDark) : {}) }}>
       <View className="flex-row items-start gap-3">
         {/* Pick checkbox */}
         {pickingMode && (
@@ -483,34 +492,34 @@ function PickListItemRow({
             style={{
               width: 26,
               height: 26,
-              backgroundColor: isPicked ? COLORS.success : COLORS.navy,
+              backgroundColor: isPicked ? colors.success : colors.background,
               borderWidth: 2,
-              borderColor: isPicked ? COLORS.success : COLORS.border,
+              borderColor: isPicked ? colors.success : colors.border,
             }}>
-            {isPicked && <CheckCircle size={14} color={COLORS.navy} fill={COLORS.navy} />}
+            {isPicked && <CheckCircle size={14} color={colors.accentOnAccent} fill={colors.accentOnAccent} />}
           </TouchableOpacity>
         )}
 
         {/* Item icon */}
         <View
           className="items-center justify-center rounded-xl p-2.5"
-          style={{ backgroundColor: `${COLORS.teal}22` }}>
-          <Package color={COLORS.teal} size={18} />
+          style={{ backgroundColor: colors.accentMuted }}>
+          <Package color={colors.accent} size={18} />
         </View>
 
         {/* Info */}
         <View className="flex-1">
-          <Text className="font-semibold text-white" numberOfLines={2} style={{ opacity: isPicked && pickingMode ? 0.5 : 1 }}>
+          <Text className="font-semibold" numberOfLines={2} style={{ opacity: isPicked && pickingMode ? 0.5 : 1, color: colors.textPrimary }}>
             {pli.items?.name ?? 'Unknown Item'}
           </Text>
           {pli.items?.sku && (
-            <Text className="text-xs mt-0.5" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
               SKU: {pli.items.sku}
             </Text>
           )}
           {(pli.location_hint ?? pli.items?.location) && (
-            <Text className="text-xs mt-0.5" style={{ color: COLORS.teal }}>
-              📍 {pli.location_hint ?? pli.items?.location}
+            <Text className="text-xs mt-0.5" style={{ color: colors.accent }}>
+              {'\uD83D\uDCCD'} {pli.location_hint ?? pli.items?.location}
             </Text>
           )}
         </View>
@@ -518,23 +527,23 @@ function PickListItemRow({
         {/* Right side */}
         <View className="items-end gap-1.5">
           {canEdit && !pickingMode && (
-            <TouchableOpacity onPress={onRemove} className="p-1.5 rounded-lg" style={{ backgroundColor: `${COLORS.destructive}22` }}>
-              <Trash2 size={13} color={COLORS.destructive} />
+            <TouchableOpacity onPress={onRemove} className="p-1.5 rounded-lg" style={{ backgroundColor: colors.destructiveMuted }}>
+              <Trash2 size={13} color={colors.destructive} />
             </TouchableOpacity>
           )}
           <View className="items-end">
-            <Text className="text-sm font-bold text-white">
+            <Text className="text-sm font-bold" style={{ color: colors.textPrimary }}>
               {pli.quantity_picked} / {pli.quantity_requested}
             </Text>
-            <Text className="text-xs" style={{ color: COLORS.textSecondary }}>picked</Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>picked</Text>
             {pli.items != null && (
-              <Text className="text-[10px] mt-0.5" style={{ color: COLORS.teal }}>
+              <Text className="text-[10px] mt-0.5" style={{ color: colors.accent }}>
                 Stock: {pli.items.quantity}
               </Text>
             )}
           </View>
           {pli.unit_price != null && (
-            <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {formatCurrency(pli.unit_price)}
             </Text>
           )}
@@ -544,29 +553,29 @@ function PickListItemRow({
       {/* Picking quantity stepper */}
       {pickingMode && !isPicked && (
         <View className="mt-3 flex-row items-center gap-3">
-          <Text className="text-xs" style={{ color: COLORS.textSecondary }}>Qty picked:</Text>
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>Qty picked:</Text>
           <View className="flex-row items-center gap-2">
             <TouchableOpacity
               onPress={() => onPick(Math.max(0, pli.quantity_picked - 1))}
               className="items-center justify-center rounded-lg"
-              style={{ width: 30, height: 30, backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text className="text-white font-bold text-base">−</Text>
+              style={{ width: 30, height: 30, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+              <Text className="font-bold text-base" style={{ color: colors.textPrimary }}>{'\u2212'}</Text>
             </TouchableOpacity>
-            <Text className="text-sm font-bold text-white" style={{ minWidth: 28, textAlign: 'center' }}>
+            <Text className="text-sm font-bold" style={{ minWidth: 28, textAlign: 'center', color: colors.textPrimary }}>
               {pli.quantity_picked}
             </Text>
             <TouchableOpacity
               onPress={() => onPick(Math.min(pli.quantity_requested, pli.quantity_picked + 1))}
               className="items-center justify-center rounded-lg"
-              style={{ width: 30, height: 30, backgroundColor: COLORS.teal }}>
-              <Text style={{ color: COLORS.navy }} className="font-bold text-base">+</Text>
+              style={{ width: 30, height: 30, backgroundColor: colors.accent }}>
+              <Text style={{ color: colors.accentOnAccent }} className="font-bold text-base">+</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
             onPress={() => onPick(pli.quantity_requested)}
             className="flex-1 items-center rounded-lg py-1.5"
-            style={{ backgroundColor: `${COLORS.success}22`, borderWidth: 1, borderColor: `${COLORS.success}55` }}>
-            <Text className="text-xs font-semibold" style={{ color: COLORS.success }}>Pick All</Text>
+            style={{ backgroundColor: colors.successMuted, borderWidth: 1, borderColor: `${colors.success}55` }}>
+            <Text className="text-xs font-semibold" style={{ color: colors.success }}>Pick All</Text>
           </TouchableOpacity>
         </View>
       )}

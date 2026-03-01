@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TouchableOpacity,
   Text,
   Modal,
-  StyleSheet,
   Pressable,
-  Dimensions,
 } from 'react-native';
 import { Plus, X, FileText, Folder as FolderIcon } from 'lucide-react-native';
 import Animated, {
@@ -15,10 +13,8 @@ import Animated, {
   withSpring,
   interpolate,
 } from 'react-native-reanimated';
-import { COLORS } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { router } from 'expo-router';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface InventoryFABProps {
   currentFolderId?: string;
@@ -30,9 +26,9 @@ interface InventoryFABProps {
 export function InventoryFAB({
   currentFolderId,
   currentFolderName = 'Items',
-  onFolderCreated,
   onAddFolderPress,
 }: InventoryFABProps) {
+  const { colors, isDark } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const rotation = useSharedValue(0);
 
@@ -65,64 +61,117 @@ export function InventoryFAB({
 
   return (
     <>
-      {/* FAB Button */}
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={toggleOpen}
-        style={[styles.fab, { backgroundColor: COLORS.teal }]}
-      >
+        style={{
+          position: 'absolute',
+          bottom: 30,
+          right: 20,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          backgroundColor: colors.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: colors.accent,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 8,
+          zIndex: 999,
+        }}>
         <Animated.View style={fabIconStyle}>
-          <Plus color={COLORS.navy} size={28} strokeWidth={2.5} />
+          <Plus color={colors.accentOnAccent} size={28} strokeWidth={2.5} />
         </Animated.View>
       </TouchableOpacity>
 
-      {/* Popup Bottom Sheet */}
       <Modal
         visible={isOpen}
         transparent
         animationType="fade"
-        onRequestClose={toggleOpen}
-      >
-        <Pressable style={styles.overlay} onPress={toggleOpen}>
-          <View style={styles.sheetContainer}>
-            <View style={[styles.sheet, { backgroundColor: COLORS.navyLight }]}>
-              {/* Header */}
-              <View style={styles.header}>
-                <Text style={styles.headerText}>Adding to: {currentFolderName}</Text>
-                <TouchableOpacity onPress={toggleOpen} style={styles.closeButton}>
-                  <X color={COLORS.white} size={20} />
+        onRequestClose={toggleOpen}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' }}
+          onPress={toggleOpen}>
+          <View style={{ width: '100%', height: '100%', justifyContent: 'flex-end' }}>
+            <View
+              style={{
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                padding: 24,
+                paddingBottom: 110,
+                width: '100%',
+                backgroundColor: colors.surfaceElevated,
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? colors.borderLight : 'transparent',
+              }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '700' }}>
+                  Adding to: {currentFolderName}
+                </Text>
+                <TouchableOpacity
+                  onPress={toggleOpen}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: colors.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <X color={colors.textSecondary} size={20} />
                 </TouchableOpacity>
               </View>
 
-              {/* Options */}
-              <View style={styles.options}>
+              <View style={{ gap: 12 }}>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handleAddItem}
-                  style={[styles.optionButton, { backgroundColor: `${COLORS.teal}22` }]}
-                >
-                  <FileText color={COLORS.white} size={20} style={styles.optionIcon} />
-                  <Text style={styles.optionText}>Add Item</Text>
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 12,
+                    backgroundColor: colors.accentMuted,
+                  }}>
+                  <FileText color={colors.accent} size={20} style={{ marginRight: 12 }} />
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>Add Item</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={handleAddFolder}
-                  style={[styles.optionButton, { backgroundColor: `${COLORS.teal}22` }]}
-                >
-                  <FolderIcon color={COLORS.white} size={20} style={styles.optionIcon} />
-                  <Text style={styles.optionText}>Add Folder</Text>
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 12,
+                    backgroundColor: colors.accentMuted,
+                  }}>
+                  <FolderIcon color={colors.accent} size={20} style={{ marginRight: 12 }} />
+                  <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>Add Folder</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Floating Close Button (Alternative to rotation if user wants the same position) */}
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={toggleOpen}
-              style={[styles.fabInModal, { backgroundColor: COLORS.teal }]}
-            >
-              <X color={COLORS.navy} size={28} strokeWidth={2.5} />
+              style={{
+                position: 'absolute',
+                bottom: 30,
+                right: 20,
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                backgroundColor: colors.accent,
+                alignItems: 'center',
+                justifyContent: 'center',
+                elevation: 9,
+                zIndex: 1001,
+              }}>
+              <X color={colors.accentOnAccent} size={28} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -130,89 +179,3 @@ export function InventoryFAB({
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    zIndex: 999,
-  },
-  fabInModal: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 9,
-    zIndex: 1001,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 110, // Extra padding to clear the FAB
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  headerText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  options: {
-    gap: 12,
-  },
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-  },
-  optionIcon: {
-    marginRight: 12,
-  },
-  optionText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});

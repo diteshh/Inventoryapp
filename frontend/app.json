@@ -18,7 +18,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.orchids.imperialinventory",
+      "bundleIdentifier": "com.ditesh.imperialinventory",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to take photos of items and scan barcodes.",
         "NSPhotoLibraryUsageDescription": "Photo library is used to select item photos.",
@@ -32,7 +32,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1B2838"
       },
-      "package": "com.orchids.imperialinventory",
+      "package": "com.ditesh.imperialinventory",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",

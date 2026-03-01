@@ -59,12 +59,21 @@ npm run dev:tunnel       # Backend + ngrok for public URL
 
 ## Environment Variables
 
-Frontend `.env`:
+Copy `frontend/.env.example` to `frontend/.env` and fill in the keys.
+Get the Supabase anon key from the team lead or Supabase Dashboard.
+
 ```
-EXPO_PUBLIC_SUPABASE_URL=<supabase_project_url>
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<supabase_anon_key>
+EXPO_PUBLIC_SUPABASE_URL=https://ovahczsudvwcuwvmapyi.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<get-from-team-lead>
 EXPO_PUBLIC_BACKEND_URL=http://localhost:3002
 ```
+
+## Supabase Project
+
+- **Project:** Inventory App (`ovahczsudvwcuwvmapyi`)
+- **Region:** West EU (Ireland)
+- **Dashboard:** https://supabase.com/dashboard/project/ovahczsudvwcuwvmapyi
+- **Schema migration:** `supabase/migrations/20260301000000_full_schema.sql`
 
 ## Database Tables (Supabase)
 
@@ -72,9 +81,12 @@ EXPO_PUBLIC_BACKEND_URL=http://localhost:3002
 - `folders` — hierarchical storage (supports nesting via parent_folder_id)
 - `tags` / `item_tags` — item categorization (many-to-many)
 - `pick_lists` / `pick_list_items` — warehouse picking workflow with status tracking
-- `profiles` — user profiles (role, PIN hash, avatar)
+- `profiles` — user profiles (role, PIN hash, avatar, linked to Supabase Auth)
 - `activity_log` — audit trail for all actions
 - `pick_list_comments` — team collaboration on pick lists
+
+RLS is enabled on all tables. Authenticated users have full access (single-tenant).
+Storage bucket `item-photos` is set up for item photo uploads.
 
 ## Coding Conventions
 

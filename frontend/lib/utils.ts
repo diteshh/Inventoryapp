@@ -50,20 +50,21 @@ export function formatRelativeTime(dateStr: string | null | undefined): string {
   return formatDate(dateStr);
 }
 
-export function getPickListStatusColor(status: string): string {
+export function getPickListStatusColor(status: string, colors?: { statusDraft: string; statusReady: string; statusInProgress: string; statusPartial: string; statusComplete: string }): string {
+  const c = colors ?? { statusDraft: '#7D8590', statusReady: '#58A6FF', statusInProgress: '#D29922', statusPartial: '#F0883E', statusComplete: '#3FB950' };
   switch (status) {
     case 'draft':
-      return '#8899B4';
+      return c.statusDraft;
     case 'ready_to_pick':
-      return '#3B82F6';
+      return c.statusReady;
     case 'in_progress':
-      return '#F59E0B';
+      return c.statusInProgress;
     case 'partially_complete':
-      return '#F97316';
+      return c.statusPartial;
     case 'complete':
-      return '#22C55E';
+      return c.statusComplete;
     default:
-      return '#8899B4';
+      return c.statusDraft;
   }
 }
 

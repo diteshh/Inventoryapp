@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item, Tag } from '@/lib/types';
 import { logActivity, generateSku } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -68,9 +69,10 @@ export default function AddEditItemScreen() {
   const { id, folder_id: paramFolderId } = useLocalSearchParams<{ id?: string; barcode?: string; folder_id?: string }>();
   const params = useLocalSearchParams<{ barcode?: string }>();
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const isEdit = !!id;
-  const [form, setForm] = useState<ItemForm>({ 
-    ...EMPTY_FORM, 
+  const [form, setForm] = useState<ItemForm>({
+    ...EMPTY_FORM,
     barcode: params.barcode ?? '',
     folder_id: paramFolderId ?? null,
   });
@@ -172,7 +174,7 @@ export default function AddEditItemScreen() {
 
   const createTag = async () => {
     if (!newTagName.trim()) return;
-    const { data } = await supabase.from('tags').insert({ name: newTagName.trim(), colour: COLORS.teal }).select().single();
+    const { data } = await supabase.from('tags').insert({ name: newTagName.trim(), colour: colors.accent }).select().single();
     if (data) {
       const tag = data as Tag;
       setAllTags((prev) => [...prev, tag]);
@@ -235,24 +237,24 @@ export default function AddEditItemScreen() {
   const selectedFolder = allFolders.find((f) => f.id === form.folder_id);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-white">{isEdit ? 'Edit Item' : 'Add Item'}</Text>
+        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{isEdit ? 'Edit Item' : 'Add Item'}</Text>
         <TouchableOpacity
           onPress={save}
           disabled={saving}
           className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: COLORS.teal }}>
+          style={{ backgroundColor: colors.accent }}>
           {saving ? (
-            <ActivityIndicator color={COLORS.navy} size="small" />
+            <ActivityIndicator color={colors.accentOnAccent} size="small" />
           ) : (
             <>
-              <Save color={COLORS.navy} size={16} />
-              <Text className="font-bold text-sm" style={{ color: COLORS.navy }}>Save</Text>
+              <Save color={colors.accentOnAccent} size={16} />
+              <Text className="font-bold text-sm" style={{ color: colors.accentOnAccent }}>Save</Text>
             </>
           )}
         </TouchableOpacity>
@@ -262,7 +264,7 @@ export default function AddEditItemScreen() {
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
           {/* Photos */}
           <View className="px-5 mb-4">
-            <Text className="mb-2 text-sm font-medium" style={{ color: COLORS.textSecondary }}>Photos</Text>
+            <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>Photos</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-3">
                 {photos.map((photo, idx) => (
@@ -275,7 +277,7 @@ export default function AddEditItemScreen() {
                     <TouchableOpacity
                       onPress={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
                       className="absolute -right-1.5 -top-1.5 rounded-full p-1"
-                      style={{ backgroundColor: COLORS.destructive }}>
+                      style={{ backgroundColor: colors.destructive }}>
                       <X color="#fff" size={12} />
                     </TouchableOpacity>
                   </View>
@@ -283,97 +285,97 @@ export default function AddEditItemScreen() {
                 <TouchableOpacity
                   onPress={takePhoto}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed' }}>
+                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
                   {uploadingPhotos ? (
-                    <ActivityIndicator color={COLORS.teal} size="small" />
+                    <ActivityIndicator color={colors.accent} size="small" />
                   ) : (
                     <>
-                      <Camera color={COLORS.teal} size={22} />
-                      <Text className="mt-1 text-xs" style={{ color: COLORS.textSecondary }}>Camera</Text>
+                      <Camera color={colors.accent} size={22} />
+                      <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Camera</Text>
                     </>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={pickImage}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed' }}>
-                  <ImageIcon color={COLORS.teal} size={22} />
-                  <Text className="mt-1 text-xs" style={{ color: COLORS.textSecondary }}>Library</Text>
+                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
+                  <ImageIcon color={colors.accent} size={22} />
+                  <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Library</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
 
           {/* Basic Info */}
-          <FormSection title="Basic Information">
-            <FormField label="Name *" value={form.name} onChangeText={(v) => f('name', v)} placeholder="Item name" />
-            <FormField label="Description" value={form.description} onChangeText={(v) => f('description', v)} placeholder="Optional description" multiline />
-            <FormField label="SKU" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="Stock keeping unit" />
+          <FormSection title="Basic Information" colors={colors} isDark={isDark}>
+            <FormField label="Name *" value={form.name} onChangeText={(v) => f('name', v)} placeholder="Item name" colors={colors} />
+            <FormField label="Description" value={form.description} onChangeText={(v) => f('description', v)} placeholder="Optional description" multiline colors={colors} />
+            <FormField label="SKU" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="Stock keeping unit" colors={colors} />
             <View>
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>Barcode</Text>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Barcode</Text>
               <View className="flex-row items-center gap-2">
                 <TextInput
-                  className="flex-1 rounded-xl px-4 py-3.5 text-sm text-white"
-                  style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}
+                  className="flex-1 rounded-xl px-4 py-3.5 text-sm"
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
                   placeholder="Scan or enter barcode"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                   value={form.barcode}
                   onChangeText={(v) => f('barcode', v)}
                 />
                 <TouchableOpacity
                   onPress={() => router.push('/(tabs)/scanner')}
                   className="items-center justify-center rounded-xl p-3.5"
-                  style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-                  <QrCode color={COLORS.teal} size={20} />
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <QrCode color={colors.accent} size={20} />
                 </TouchableOpacity>
               </View>
             </View>
           </FormSection>
 
           {/* Quantity */}
-          <FormSection title="Stock">
+          <FormSection title="Stock" colors={colors} isDark={isDark}>
             <View className="flex-row gap-3">
               <View className="flex-1">
-                <FormField label="Quantity" value={form.quantity} onChangeText={(v) => f('quantity', v)} placeholder="0" keyboardType="numeric" />
+                <FormField label="Quantity" value={form.quantity} onChangeText={(v) => f('quantity', v)} placeholder="0" keyboardType="numeric" colors={colors} />
               </View>
               <View className="flex-1">
-                <FormField label="Min Quantity" value={form.min_quantity} onChangeText={(v) => f('min_quantity', v)} placeholder="0" keyboardType="numeric" />
+                <FormField label="Min Quantity" value={form.min_quantity} onChangeText={(v) => f('min_quantity', v)} placeholder="0" keyboardType="numeric" colors={colors} />
               </View>
             </View>
-            <FormField label="Location" value={form.location} onChangeText={(v) => f('location', v)} placeholder="e.g. Aisle 3, Shelf B" />
+            <FormField label="Location" value={form.location} onChangeText={(v) => f('location', v)} placeholder="e.g. Aisle 3, Shelf B" colors={colors} />
           </FormSection>
 
           {/* Pricing */}
-          <FormSection title="Pricing">
+          <FormSection title="Pricing" colors={colors} isDark={isDark}>
             <View className="flex-row gap-3">
               <View className="flex-1">
-                <FormField label="Cost Price (£)" value={form.cost_price} onChangeText={(v) => f('cost_price', v)} placeholder="0.00" keyboardType="decimal-pad" />
+                <FormField label="Cost Price (£)" value={form.cost_price} onChangeText={(v) => f('cost_price', v)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
               </View>
               <View className="flex-1">
-                <FormField label="Sell Price (£)" value={form.sell_price} onChangeText={(v) => f('sell_price', v)} placeholder="0.00" keyboardType="decimal-pad" />
+                <FormField label="Sell Price (£)" value={form.sell_price} onChangeText={(v) => f('sell_price', v)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
               </View>
             </View>
-            <FormField label="Weight (kg)" value={form.weight} onChangeText={(v) => f('weight', v)} placeholder="0.000" keyboardType="decimal-pad" />
+            <FormField label="Weight (kg)" value={form.weight} onChangeText={(v) => f('weight', v)} placeholder="0.000" keyboardType="decimal-pad" colors={colors} />
           </FormSection>
 
           {/* Organisation */}
-          <FormSection title="Organisation">
+          <FormSection title="Organisation" colors={colors} isDark={isDark}>
             {/* Folder Picker */}
             <View className="mb-3">
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>Folder</Text>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Folder</Text>
               <TouchableOpacity
                 onPress={() => setShowFolderModal(true)}
                 className="flex-row items-center justify-between rounded-xl px-4 py-3.5"
-                style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <View className="flex-row items-center gap-2">
-                  <FolderOpen color={COLORS.textSecondary} size={16} />
-                  <Text className="text-sm" style={{ color: selectedFolder ? COLORS.textPrimary : COLORS.textSecondary }}>
+                  <FolderOpen color={colors.textSecondary} size={16} />
+                  <Text className="text-sm" style={{ color: selectedFolder ? colors.textPrimary : colors.textSecondary }}>
                     {selectedFolder?.name ?? 'No folder (root)'}
                   </Text>
                 </View>
                 {selectedFolder && (
                   <TouchableOpacity onPress={() => f('folder_id', null)}>
-                    <X color={COLORS.textSecondary} size={16} />
+                    <X color={colors.textSecondary} size={16} />
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
@@ -381,63 +383,63 @@ export default function AddEditItemScreen() {
 
             {/* Tags */}
             <View>
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>Tags</Text>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Tags</Text>
               <View className="flex-row flex-wrap gap-2 mb-2">
                 {selectedTags.map((tag) => (
                   <TouchableOpacity
                     key={tag.id}
                     onPress={() => setSelectedTags((prev) => prev.filter((t) => t.id !== tag.id))}
                     className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                    style={{ backgroundColor: `${tag.colour ?? COLORS.teal}22`, borderWidth: 1, borderColor: `${tag.colour ?? COLORS.teal}44` }}>
-                    <Text className="text-xs font-medium" style={{ color: tag.colour ?? COLORS.teal }}>
+                    style={{ backgroundColor: `${tag.colour ?? colors.accent}22`, borderWidth: 1, borderColor: `${tag.colour ?? colors.accent}44` }}>
+                    <Text className="text-xs font-medium" style={{ color: tag.colour ?? colors.accent }}>
                       {tag.name}
                     </Text>
-                    <X color={tag.colour ?? COLORS.teal} size={12} />
+                    <X color={tag.colour ?? colors.accent} size={12} />
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
                   onPress={() => setShowTagModal(true)}
                   className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                  style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-                  <Plus color={COLORS.textSecondary} size={14} />
-                  <Text className="text-xs" style={{ color: COLORS.textSecondary }}>Add Tag</Text>
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <Plus color={colors.textSecondary} size={14} />
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>Add Tag</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </FormSection>
 
           {/* Notes */}
-          <FormSection title="Notes">
-            <FormField label="" value={form.notes} onChangeText={(v) => f('notes', v)} placeholder="Additional notes..." multiline />
+          <FormSection title="Notes" colors={colors} isDark={isDark}>
+            <FormField label="" value={form.notes} onChangeText={(v) => f('notes', v)} placeholder="Additional notes..." multiline colors={colors} />
           </FormSection>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Tag Modal */}
       <Modal visible={showTagModal} animationType="slide" transparent>
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: COLORS.navyCard, maxHeight: '70%' }}>
+        <View className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface, maxHeight: '70%' }}>
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-white">Select Tags</Text>
+              <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Select Tags</Text>
               <TouchableOpacity onPress={() => setShowTagModal(false)}>
-                <X color={COLORS.textSecondary} size={20} />
+                <X color={colors.textSecondary} size={20} />
               </TouchableOpacity>
             </View>
             {/* Create new tag */}
             <View className="mb-4 flex-row gap-2">
               <TextInput
-                className="flex-1 rounded-xl px-4 py-3 text-sm text-white"
-                style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+                className="flex-1 rounded-xl px-4 py-3 text-sm"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
                 placeholder="New tag name..."
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 value={newTagName}
                 onChangeText={setNewTagName}
               />
               <TouchableOpacity
                 onPress={createTag}
                 className="items-center justify-center rounded-xl px-4"
-                style={{ backgroundColor: COLORS.teal }}>
-                <Plus color={COLORS.navy} size={18} />
+                style={{ backgroundColor: colors.accent }}>
+                <Plus color={colors.accentOnAccent} size={18} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -453,14 +455,14 @@ export default function AddEditItemScreen() {
                     }}
                     className="mb-2 flex-row items-center justify-between rounded-xl px-4 py-3"
                     style={{
-                      backgroundColor: selected ? `${tag.colour ?? COLORS.teal}22` : COLORS.navy,
+                      backgroundColor: selected ? `${tag.colour ?? colors.accent}22` : colors.background,
                       borderWidth: 1,
-                      borderColor: selected ? `${tag.colour ?? COLORS.teal}44` : COLORS.border,
+                      borderColor: selected ? `${tag.colour ?? colors.accent}44` : colors.border,
                     }}>
-                    <Text className="text-sm font-medium" style={{ color: tag.colour ?? COLORS.teal }}>
+                    <Text className="text-sm font-medium" style={{ color: tag.colour ?? colors.accent }}>
                       {tag.name}
                     </Text>
-                    {selected && <Text style={{ color: tag.colour ?? COLORS.teal }}>✓</Text>}
+                    {selected && <Text style={{ color: tag.colour ?? colors.accent }}>✓</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -471,31 +473,31 @@ export default function AddEditItemScreen() {
 
       {/* Folder Modal */}
       <Modal visible={showFolderModal} animationType="slide" transparent>
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: COLORS.navyCard, maxHeight: '60%' }}>
+        <View className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface, maxHeight: '60%' }}>
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-white">Select Folder</Text>
+              <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Select Folder</Text>
               <TouchableOpacity onPress={() => setShowFolderModal(false)}>
-                <X color={COLORS.textSecondary} size={20} />
+                <X color={colors.textSecondary} size={20} />
               </TouchableOpacity>
             </View>
             <ScrollView>
               <TouchableOpacity
                 onPress={() => { f('folder_id', null); setShowFolderModal(false); }}
                 className="mb-2 flex-row items-center gap-3 rounded-xl px-4 py-3"
-                style={{ backgroundColor: !form.folder_id ? `${COLORS.teal}22` : COLORS.navy }}>
-                <FolderOpen color={COLORS.textSecondary} size={18} />
-                <Text className="text-sm text-white">Root (no folder)</Text>
+                style={{ backgroundColor: !form.folder_id ? colors.accentMuted : colors.background }}>
+                <FolderOpen color={colors.textSecondary} size={18} />
+                <Text className="text-sm" style={{ color: colors.textPrimary }}>Root (no folder)</Text>
               </TouchableOpacity>
               {allFolders.map((folder) => (
                 <TouchableOpacity
                   key={folder.id}
                   onPress={() => { f('folder_id', folder.id); setShowFolderModal(false); }}
                   className="mb-2 flex-row items-center gap-3 rounded-xl px-4 py-3"
-                  style={{ backgroundColor: form.folder_id === folder.id ? `${COLORS.teal}22` : COLORS.navy }}>
-                  <FolderOpen color={folder.colour ?? COLORS.teal} size={18} />
-                  <Text className="text-sm text-white">{folder.name}</Text>
-                  {form.folder_id === folder.id && <Text style={{ color: COLORS.teal }}>✓</Text>}
+                  style={{ backgroundColor: form.folder_id === folder.id ? colors.accentMuted : colors.background }}>
+                  <FolderOpen color={folder.colour ?? colors.accent} size={18} />
+                  <Text className="text-sm" style={{ color: colors.textPrimary }}>{folder.name}</Text>
+                  {form.folder_id === folder.id && <Text style={{ color: colors.accent }}>✓</Text>}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -506,11 +508,11 @@ export default function AddEditItemScreen() {
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, children, colors, isDark }: { title: string; children: React.ReactNode; colors: ThemeColors; isDark: boolean }) {
   return (
     <View className="mb-4 px-5">
-      {title && <Text className="mb-3 text-sm font-semibold text-white">{title}</Text>}
-      <View className="rounded-2xl p-4 gap-3" style={{ backgroundColor: COLORS.navyCard }}>
+      {title && <Text className="mb-3 text-sm font-semibold" style={{ color: colors.textPrimary }}>{title}</Text>}
+      <View className="rounded-2xl p-4 gap-3" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
         {children}
       </View>
     </View>
@@ -524,6 +526,7 @@ function FormField({
   placeholder,
   keyboardType,
   multiline,
+  colors,
 }: {
   label: string;
   value: string;
@@ -531,25 +534,27 @@ function FormField({
   placeholder?: string;
   keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'email-address';
   multiline?: boolean;
+  colors: ThemeColors;
 }) {
   return (
     <View>
       {label && (
-        <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+        <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
           {label}
         </Text>
       )}
       <TextInput
-        className="rounded-xl px-4 py-3.5 text-sm text-white"
+        className="rounded-xl px-4 py-3.5 text-sm"
         style={{
-          backgroundColor: COLORS.navy,
+          backgroundColor: colors.background,
           borderWidth: 1,
-          borderColor: COLORS.border,
+          borderColor: colors.border,
+          color: colors.textPrimary,
           minHeight: multiline ? 80 : undefined,
           textAlignVertical: multiline ? 'top' : 'center',
         }}
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textSecondary}
+        placeholderTextColor={colors.textSecondary}
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType ?? 'default'}

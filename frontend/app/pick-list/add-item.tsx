@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { Item } from '@/lib/types';
 import { impactLight, notificationSuccess } from '@/lib/haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,6 +25,7 @@ interface SelectedItem {
 
 export default function AddItemToPickListScreen() {
   const { pickListId } = useLocalSearchParams<{ pickListId: string }>();
+  const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -133,26 +135,26 @@ export default function AddItemToPickListScreen() {
   const selectedArray = Array.from(selected.values());
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <View className="px-5 py-3 flex-row items-center justify-between">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-base font-bold text-white flex-1 mx-3">Add Items</Text>
+        <Text className="text-base font-bold flex-1 mx-3" style={{ color: colors.textPrimary }}>Add Items</Text>
         <TouchableOpacity
           onPress={addToPickList}
           disabled={selected.size === 0 || saving}
           className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: selected.size > 0 ? COLORS.teal : COLORS.navyCard }}>
+          style={{ backgroundColor: selected.size > 0 ? colors.accent : colors.surface }}>
           {saving ? (
-            <ActivityIndicator size="small" color={COLORS.navy} />
+            <ActivityIndicator size="small" color={colors.accentOnAccent} />
           ) : (
             <>
-              <Check color={selected.size > 0 ? COLORS.navy : COLORS.textSecondary} size={16} />
+              <Check color={selected.size > 0 ? colors.accentOnAccent : colors.textSecondary} size={16} />
               <Text
                 className="text-sm font-bold"
-                style={{ color: selected.size > 0 ? COLORS.navy : COLORS.textSecondary }}>
+                style={{ color: selected.size > 0 ? colors.accentOnAccent : colors.textSecondary }}>
                 Add {selected.size > 0 ? `(${selected.size})` : ''}
               </Text>
             </>
@@ -163,19 +165,20 @@ export default function AddItemToPickListScreen() {
       {/* Search */}
       <View
         className="mx-5 mb-3 flex-row items-center rounded-xl px-3 py-2.5"
-        style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-        <Search color={COLORS.textSecondary} size={16} />
+        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+        <Search color={colors.textSecondary} size={16} />
         <TextInput
-          className="ml-2 flex-1 text-sm text-white"
+          className="ml-2 flex-1 text-sm"
+          style={{ color: colors.textPrimary }}
           placeholder="Search by name, SKU or barcode..."
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoFocus
         />
         {searchQuery ? (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <X color={COLORS.textSecondary} size={16} />
+            <X color={colors.textSecondary} size={16} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -191,12 +194,12 @@ export default function AddItemToPickListScreen() {
             renderItem={({ item: s }) => (
               <View
                 className="mr-2 flex-row items-center gap-1.5 rounded-xl px-3 py-1.5"
-                style={{ backgroundColor: `${COLORS.teal}22`, borderWidth: 1, borderColor: `${COLORS.teal}44` }}>
-                <Text className="text-xs font-semibold" style={{ color: COLORS.teal }}>
-                  {s.item.name.length > 18 ? s.item.name.slice(0, 18) + '…' : s.item.name} ×{s.quantity}
+                style={{ backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: `${colors.accent}44` }}>
+                <Text className="text-xs font-semibold" style={{ color: colors.accent }}>
+                  {s.item.name.length > 18 ? s.item.name.slice(0, 18) + '\u2026' : s.item.name} x{s.quantity}
                 </Text>
                 <TouchableOpacity onPress={() => toggleItem(s.item)}>
-                  <X color={COLORS.teal} size={12} />
+                  <X color={colors.accent} size={12} />
                 </TouchableOpacity>
               </View>
             )}
@@ -206,7 +209,7 @@ export default function AddItemToPickListScreen() {
 
       {/* Items list */}
       {loading ? (
-        <ActivityIndicator color={COLORS.teal} className="mt-8" />
+        <ActivityIndicator color={colors.accent} className="mt-8" />
       ) : (
         <FlatList
           data={items}
@@ -215,8 +218,8 @@ export default function AddItemToPickListScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View className="items-center py-12">
-              <Package color={COLORS.textSecondary} size={32} />
-              <Text className="mt-3 text-sm" style={{ color: COLORS.textSecondary }}>
+              <Package color={colors.textSecondary} size={32} />
+              <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
                 {searchQuery ? 'No items match your search' : 'No items found'}
               </Text>
             </View>
@@ -227,94 +230,128 @@ export default function AddItemToPickListScreen() {
             const selectedEntry = selected.get(item.id);
 
             return (
-              <TouchableOpacity
-                onPress={() => !alreadyAdded && toggleItem(item)}
-                activeOpacity={alreadyAdded ? 1 : 0.7}
-                className="mb-2.5 rounded-2xl p-4"
-                style={{
-                  backgroundColor: isSelected ? `${COLORS.teal}15` : COLORS.navyCard,
-                  borderWidth: 1,
-                  borderColor: isSelected ? `${COLORS.teal}55` : COLORS.border,
-                  opacity: alreadyAdded ? 0.4 : 1,
-                }}>
-                <View className="flex-row items-center gap-3">
-                  {/* Checkbox */}
-                  <View
-                    className="items-center justify-center rounded-full"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      backgroundColor: isSelected ? COLORS.teal : COLORS.navy,
-                      borderWidth: 2,
-                      borderColor: isSelected ? COLORS.teal : COLORS.border,
-                    }}>
-                    {isSelected && <Check size={13} color={COLORS.navy} />}
-                  </View>
-
-                  {/* Icon */}
-                  <View
-                    className="items-center justify-center rounded-xl p-2"
-                    style={{ backgroundColor: `${COLORS.teal}22` }}>
-                    <Package color={COLORS.teal} size={16} />
-                  </View>
-
-                  {/* Info */}
-                  <View className="flex-1">
-                    <Text className="font-semibold text-white" numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <View className="flex-row items-center gap-2 mt-0.5">
-                      {item.sku && (
-                        <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
-                          {item.sku}
-                        </Text>
-                      )}
-                      {item.location && (
-                        <Text className="text-xs" style={{ color: COLORS.teal }}>
-                          📍 {item.location}
-                        </Text>
-                      )}
-                    </View>
-                    {alreadyAdded && (
-                      <Text className="text-xs mt-0.5" style={{ color: COLORS.warning }}>
-                        Already in list
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Stock + Qty */}
-                  <View className="items-end gap-1">
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{ color: item.quantity <= item.min_quantity ? COLORS.destructive : COLORS.success }}>
-                      {item.quantity} in stock
-                    </Text>
-                    {isSelected && selectedEntry && (
-                      <View className="flex-row items-center gap-1.5 mt-1">
-                        <TouchableOpacity
-                          onPress={() => updateQty(item.id, -1)}
-                          className="items-center justify-center rounded-md"
-                          style={{ width: 24, height: 24, backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}>
-                          <Text className="text-white font-bold text-sm">−</Text>
-                        </TouchableOpacity>
-                        <Text className="text-sm font-bold text-white" style={{ minWidth: 20, textAlign: 'center' }}>
-                          {selectedEntry.quantity}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => updateQty(item.id, 1)}
-                          className="items-center justify-center rounded-md"
-                          style={{ width: 24, height: 24, backgroundColor: COLORS.teal }}>
-                          <Text style={{ color: COLORS.navy }} className="font-bold text-sm">+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <ItemRow
+                item={item}
+                isSelected={isSelected}
+                alreadyAdded={alreadyAdded}
+                selectedEntry={selectedEntry}
+                colors={colors}
+                isDark={isDark}
+                onToggle={toggleItem}
+                onUpdateQty={updateQty}
+              />
             );
           }}
         />
       )}
     </SafeAreaView>
+  );
+}
+
+function ItemRow({
+  item,
+  isSelected,
+  alreadyAdded,
+  selectedEntry,
+  colors,
+  isDark,
+  onToggle,
+  onUpdateQty,
+}: {
+  item: Item;
+  isSelected: boolean;
+  alreadyAdded: boolean;
+  selectedEntry: SelectedItem | undefined;
+  colors: ThemeColors;
+  isDark: boolean;
+  onToggle: (item: Item) => void;
+  onUpdateQty: (itemId: string, delta: number) => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => !alreadyAdded && onToggle(item)}
+      activeOpacity={alreadyAdded ? 1 : 0.7}
+      className="mb-2.5 rounded-2xl p-4"
+      style={{
+        backgroundColor: isSelected ? colors.accentMuted : colors.surface,
+        borderWidth: 1,
+        borderColor: isSelected ? `${colors.accent}55` : isDark ? colors.borderLight : colors.border,
+        opacity: alreadyAdded ? 0.4 : 1,
+        ...(!isSelected ? getCardShadow(isDark) : {}),
+      }}>
+      <View className="flex-row items-center gap-3">
+        {/* Checkbox */}
+        <View
+          className="items-center justify-center rounded-full"
+          style={{
+            width: 24,
+            height: 24,
+            backgroundColor: isSelected ? colors.accent : colors.background,
+            borderWidth: 2,
+            borderColor: isSelected ? colors.accent : colors.border,
+          }}>
+          {isSelected && <Check size={13} color={colors.accentOnAccent} />}
+        </View>
+
+        {/* Icon */}
+        <View
+          className="items-center justify-center rounded-xl p-2"
+          style={{ backgroundColor: colors.accentMuted }}>
+          <Package color={colors.accent} size={16} />
+        </View>
+
+        {/* Info */}
+        <View className="flex-1">
+          <Text className="font-semibold" numberOfLines={1} style={{ color: colors.textPrimary }}>
+            {item.name}
+          </Text>
+          <View className="flex-row items-center gap-2 mt-0.5">
+            {item.sku && (
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                {item.sku}
+              </Text>
+            )}
+            {item.location && (
+              <Text className="text-xs" style={{ color: colors.accent }}>
+                {'\uD83D\uDCCD'} {item.location}
+              </Text>
+            )}
+          </View>
+          {alreadyAdded && (
+            <Text className="text-xs mt-0.5" style={{ color: colors.warning }}>
+              Already in list
+            </Text>
+          )}
+        </View>
+
+        {/* Stock + Qty */}
+        <View className="items-end gap-1">
+          <Text
+            className="text-xs font-semibold"
+            style={{ color: item.quantity <= item.min_quantity ? colors.destructive : colors.success }}>
+            {item.quantity} in stock
+          </Text>
+          {isSelected && selectedEntry && (
+            <View className="flex-row items-center gap-1.5 mt-1">
+              <TouchableOpacity
+                onPress={() => onUpdateQty(item.id, -1)}
+                className="items-center justify-center rounded-md"
+                style={{ width: 24, height: 24, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                <Text className="font-bold text-sm" style={{ color: colors.textPrimary }}>{'\u2212'}</Text>
+              </TouchableOpacity>
+              <Text className="text-sm font-bold" style={{ minWidth: 20, textAlign: 'center', color: colors.textPrimary }}>
+                {selectedEntry.quantity}
+              </Text>
+              <TouchableOpacity
+                onPress={() => onUpdateQty(item.id, 1)}
+                className="items-center justify-center rounded-md"
+                style={{ width: 24, height: 24, backgroundColor: colors.accent }}>
+                <Text style={{ color: colors.accentOnAccent }} className="font-bold text-sm">+</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }

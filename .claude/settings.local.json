@@ -6,7 +6,11 @@
       "Bash(npx tsc:*)",
       "Bash(npx:*)",
       "Bash(curl:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(cat:*)",
+      "WebFetch(domain:www.sortly.com)",
+      "Bash(ls:*)",
+      "Bash(export:*)"
     ]
   }
 }

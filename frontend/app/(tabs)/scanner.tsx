@@ -1,7 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import type { Item } from '@/lib/types';
-import { COLORS } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { notificationSuccess } from '@/lib/haptics';
 import { router } from 'expo-router';
 import { FlashlightOff, Flashlight, X, Package, QrCode, Search } from 'lucide-react-native';
@@ -34,6 +34,7 @@ if (Platform.OS !== 'web') {
 }
 
 function WebScannerFallback() {
+  const { colors } = useTheme();
   const [barcode, setBarcode] = useState('');
   const [processing, setProcessing] = useState(false);
   const [foundItem, setFoundItem] = useState<Item | null>(null);
@@ -66,28 +67,29 @@ function WebScannerFallback() {
   };
 
   return (
-    <SafeAreaView className="flex-1 px-6" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1 px-6" style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView behavior="padding" className="flex-1 justify-center">
         <View className="items-center mb-8">
           <View
             className="items-center justify-center rounded-full mb-4"
-            style={{ width: 80, height: 80, backgroundColor: `${COLORS.teal}22` }}>
-            <QrCode color={COLORS.teal} size={40} />
+            style={{ width: 80, height: 80, backgroundColor: colors.accentMuted }}>
+            <QrCode color={colors.accent} size={40} />
           </View>
-          <Text className="text-xl font-bold text-white mb-1">Barcode Lookup</Text>
-          <Text className="text-sm text-center" style={{ color: COLORS.textSecondary }}>
+          <Text className="text-xl font-bold mb-1" style={{ color: colors.textPrimary }}>Barcode Lookup</Text>
+          <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
             Camera scanning is only available in the mobile app.{'\n'}Enter a barcode or SKU below.
           </Text>
         </View>
 
         <View
           className="flex-row items-center rounded-2xl px-4 py-3 mb-4"
-          style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-          <Search color={COLORS.textSecondary} size={18} />
+          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          <Search color={colors.textSecondary} size={18} />
           <TextInput
-            className="flex-1 ml-3 text-base text-white"
+            className="flex-1 ml-3 text-base"
+            style={{ color: colors.textPrimary }}
             placeholder="Enter barcode or SKU..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             value={barcode}
             onChangeText={setBarcode}
             onSubmitEditing={handleSearch}
@@ -97,7 +99,7 @@ function WebScannerFallback() {
           />
           {barcode.length > 0 && (
             <TouchableOpacity onPress={() => setBarcode('')}>
-              <X color={COLORS.textSecondary} size={16} />
+              <X color={colors.textSecondary} size={16} />
             </TouchableOpacity>
           )}
         </View>
@@ -106,11 +108,11 @@ function WebScannerFallback() {
           onPress={handleSearch}
           disabled={processing || !barcode.trim()}
           className="items-center justify-center rounded-2xl py-4"
-          style={{ backgroundColor: barcode.trim() ? COLORS.teal : `${COLORS.teal}44` }}>
+          style={{ backgroundColor: barcode.trim() ? colors.accent : colors.accentMuted }}>
           {processing ? (
-            <ActivityIndicator color={COLORS.navy} />
+            <ActivityIndicator color={colors.accentOnAccent} />
           ) : (
-            <Text className="font-bold text-base" style={{ color: COLORS.navy }}>
+            <Text className="font-bold text-base" style={{ color: colors.accentOnAccent }}>
               Search
             </Text>
           )}
@@ -120,8 +122,8 @@ function WebScannerFallback() {
       {/* Found Item Modal */}
       <Modal visible={showResult} animationType="slide" transparent>
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: COLORS.navyCard }}>
-            <Text className="mb-1 text-xs font-medium uppercase tracking-wider" style={{ color: COLORS.teal }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface }}>
+            <Text className="mb-1 text-xs font-medium uppercase tracking-wider" style={{ color: colors.accent }}>
               Item Found
             </Text>
             {foundItem && (
@@ -134,18 +136,18 @@ function WebScannerFallback() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View className="items-center justify-center rounded-xl" style={{ width: 72, height: 72, backgroundColor: COLORS.navy }}>
-                      <Package color={COLORS.textSecondary} size={28} />
+                    <View className="items-center justify-center rounded-xl" style={{ width: 72, height: 72, backgroundColor: colors.background }}>
+                      <Package color={colors.textSecondary} size={28} />
                     </View>
                   )}
                   <View className="flex-1">
-                    <Text className="text-lg font-bold text-white">{foundItem.name}</Text>
+                    <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{foundItem.name}</Text>
                     {foundItem.sku && (
-                      <Text className="text-xs font-mono mt-0.5" style={{ color: COLORS.textSecondary }}>
+                      <Text className="text-xs font-mono mt-0.5" style={{ color: colors.textSecondary }}>
                         SKU: {foundItem.sku}
                       </Text>
                     )}
-                    <Text className="text-sm mt-1 font-medium" style={{ color: COLORS.teal }}>
+                    <Text className="text-sm mt-1 font-medium" style={{ color: colors.accent }}>
                       Stock: {foundItem.quantity} units
                     </Text>
                   </View>
@@ -154,14 +156,14 @@ function WebScannerFallback() {
                   <TouchableOpacity
                     onPress={() => { setShowResult(false); setBarcode(''); setFoundItem(null); }}
                     className="flex-1 items-center justify-center rounded-xl py-3.5"
-                    style={{ backgroundColor: COLORS.navy }}>
-                    <Text className="font-semibold" style={{ color: COLORS.textSecondary }}>Search Again</Text>
+                    style={{ backgroundColor: colors.background }}>
+                    <Text className="font-semibold" style={{ color: colors.textSecondary }}>Search Again</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setShowResult(false); router.push(`/item/${foundItem.id}`); }}
                     className="flex-1 items-center justify-center rounded-xl py-3.5"
-                    style={{ backgroundColor: COLORS.teal }}>
-                    <Text className="font-bold" style={{ color: COLORS.navy }}>View Item</Text>
+                    style={{ backgroundColor: colors.accent }}>
+                    <Text className="font-bold" style={{ color: colors.accentOnAccent }}>View Item</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -174,6 +176,7 @@ function WebScannerFallback() {
 }
 
 function NativeScanner() {
+  const { colors } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
@@ -218,25 +221,25 @@ function NativeScanner() {
 
   if (!permission) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: COLORS.navy }}>
-        <ActivityIndicator color={COLORS.teal} size="large" />
+      <SafeAreaView className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.accent} size="large" />
       </SafeAreaView>
     );
   }
 
   if (!permission.granted) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center px-8" style={{ backgroundColor: COLORS.navy }}>
-        <Package color={COLORS.textSecondary} size={48} className="mb-4" />
-        <Text className="mb-2 text-center text-lg font-bold text-white">Camera Permission Required</Text>
-        <Text className="mb-6 text-center text-sm" style={{ color: COLORS.textSecondary }}>
+      <SafeAreaView className="flex-1 items-center justify-center px-8" style={{ backgroundColor: colors.background }}>
+        <Package color={colors.textSecondary} size={48} className="mb-4" />
+        <Text className="mb-2 text-center text-lg font-bold" style={{ color: colors.textPrimary }}>Camera Permission Required</Text>
+        <Text className="mb-6 text-center text-sm" style={{ color: colors.textSecondary }}>
           Allow camera access to scan barcodes and QR codes.
         </Text>
         <TouchableOpacity
           onPress={requestPermission}
           className="rounded-xl px-6 py-3.5"
-          style={{ backgroundColor: COLORS.teal }}>
-          <Text className="font-bold" style={{ color: COLORS.navy }}>Grant Permission</Text>
+          style={{ backgroundColor: colors.accent }}>
+          <Text className="font-bold" style={{ color: colors.accentOnAccent }}>Grant Permission</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -245,7 +248,7 @@ function NativeScanner() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: '#000' }}>
       <CameraView
-        className="flex-1"
+        style={{ flex: 1 }}
         facing="back"
         enableTorch={flashOn}
         onBarcodeScanned={scanned ? undefined : handleBarcodeScan}
@@ -260,7 +263,7 @@ function NativeScanner() {
               style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <X color="#fff" size={22} />
             </TouchableOpacity>
-            <Text className="text-base font-bold text-white">Barcode Scanner</Text>
+            <Text className="text-base font-bold" style={{ color: colors.textPrimary }}>Barcode Scanner</Text>
             <TouchableOpacity
               onPress={() => setFlashOn((f) => !f)}
               className="rounded-full p-2.5"
@@ -279,18 +282,18 @@ function NativeScanner() {
               ].map((style, i) => (
                 <View
                   key={i}
-                  style={{ position: 'absolute', width: 30, height: 30, borderColor: COLORS.teal, ...style }}
+                  style={{ position: 'absolute', width: 30, height: 30, borderColor: colors.accent, ...style }}
                 />
               ))}
               {!scanned && (
                 <View
                   className="mx-2"
-                  style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: COLORS.teal, opacity: 0.8 }}
+                  style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 2, backgroundColor: colors.accent, opacity: 0.8 }}
                 />
               )}
               {processing && (
                 <View className="flex-1 items-center justify-center">
-                  <ActivityIndicator color={COLORS.teal} size="large" />
+                  <ActivityIndicator color={colors.accent} size="large" />
                 </View>
               )}
             </View>
@@ -304,8 +307,8 @@ function NativeScanner() {
               <TouchableOpacity
                 onPress={() => { setScanned(false); setFoundItem(null); }}
                 className="rounded-xl px-6 py-3.5"
-                style={{ backgroundColor: COLORS.teal }}>
-                <Text className="font-bold" style={{ color: COLORS.navy }}>Scan Again</Text>
+                style={{ backgroundColor: colors.accent }}>
+                <Text className="font-bold" style={{ color: colors.accentOnAccent }}>Scan Again</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -314,8 +317,8 @@ function NativeScanner() {
 
       <Modal visible={showResult} animationType="slide" transparent>
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: COLORS.navyCard }}>
-            <Text className="mb-1 text-xs font-medium uppercase tracking-wider" style={{ color: COLORS.teal }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface }}>
+            <Text className="mb-1 text-xs font-medium uppercase tracking-wider" style={{ color: colors.accent }}>
               Item Found
             </Text>
             {foundItem && (
@@ -328,22 +331,22 @@ function NativeScanner() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View className="items-center justify-center rounded-xl" style={{ width: 72, height: 72, backgroundColor: COLORS.navy }}>
-                      <Package color={COLORS.textSecondary} size={28} />
+                    <View className="items-center justify-center rounded-xl" style={{ width: 72, height: 72, backgroundColor: colors.background }}>
+                      <Package color={colors.textSecondary} size={28} />
                     </View>
                   )}
                   <View className="flex-1">
-                    <Text className="text-lg font-bold text-white">{foundItem.name}</Text>
+                    <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{foundItem.name}</Text>
                     {foundItem.sku && (
-                      <Text className="text-xs font-mono mt-0.5" style={{ color: COLORS.textSecondary }}>
+                      <Text className="text-xs font-mono mt-0.5" style={{ color: colors.textSecondary }}>
                         SKU: {foundItem.sku}
                       </Text>
                     )}
-                    <Text className="text-sm mt-1 font-medium" style={{ color: COLORS.teal }}>
+                    <Text className="text-sm mt-1 font-medium" style={{ color: colors.accent }}>
                       Stock: {foundItem.quantity} units
                     </Text>
                     {foundItem.location && (
-                      <Text className="text-xs mt-0.5" style={{ color: COLORS.textSecondary }}>
+                      <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
                         {foundItem.location}
                       </Text>
                     )}
@@ -353,14 +356,14 @@ function NativeScanner() {
                   <TouchableOpacity
                     onPress={() => { setShowResult(false); setScanned(false); }}
                     className="flex-1 items-center justify-center rounded-xl py-3.5"
-                    style={{ backgroundColor: COLORS.navy }}>
-                    <Text className="font-semibold" style={{ color: COLORS.textSecondary }}>Scan Again</Text>
+                    style={{ backgroundColor: colors.background }}>
+                    <Text className="font-semibold" style={{ color: colors.textSecondary }}>Scan Again</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setShowResult(false); router.push(`/item/${foundItem.id}`); }}
                     className="flex-1 items-center justify-center rounded-xl py-3.5"
-                    style={{ backgroundColor: COLORS.teal }}>
-                    <Text className="font-bold" style={{ color: COLORS.navy }}>View Item</Text>
+                    style={{ backgroundColor: colors.accent }}>
+                    <Text className="font-bold" style={{ color: colors.accentOnAccent }}>View Item</Text>
                   </TouchableOpacity>
                 </View>
               </>

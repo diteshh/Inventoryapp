@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
 import { logActivity } from '@/lib/utils';
 import { router } from 'expo-router';
 import { notificationSuccess } from '@/lib/haptics';
@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NewPickListScreen() {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -56,23 +57,23 @@ export default function NewPickListScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="flex-row items-center justify-between px-5 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-white">New Pick List</Text>
+        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>New Pick List</Text>
         <TouchableOpacity
           onPress={create}
           disabled={saving}
           className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: COLORS.teal }}>
+          style={{ backgroundColor: colors.accent }}>
           {saving ? (
-            <ActivityIndicator color={COLORS.navy} size="small" />
+            <ActivityIndicator color={colors.accentOnAccent} size="small" />
           ) : (
             <>
-              <Save color={COLORS.navy} size={16} />
-              <Text className="font-bold text-sm" style={{ color: COLORS.navy }}>Create</Text>
+              <Save color={colors.accentOnAccent} size={16} />
+              <Text className="font-bold text-sm" style={{ color: colors.accentOnAccent }}>Create</Text>
             </>
           )}
         </TouchableOpacity>
@@ -80,37 +81,37 @@ export default function NewPickListScreen() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <ScrollView className="flex-1 px-5 pt-4" keyboardShouldPersistTaps="handled">
-          <View className="mb-4 rounded-2xl p-4 gap-4" style={{ backgroundColor: COLORS.navyCard }}>
+          <View className="mb-4 rounded-2xl p-4 gap-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
             <View>
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
                 Pick List Name *
               </Text>
               <TextInput
-                className="rounded-xl px-4 py-3.5 text-sm text-white"
-                style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+                className="rounded-xl px-4 py-3.5 text-sm"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
                 placeholder="e.g. Morning Dispatch — 20 Feb"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 value={name}
                 onChangeText={setName}
                 autoFocus
               />
             </View>
             <View>
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
                 Notes
               </Text>
               <TextInput
-                className="rounded-xl px-4 py-3.5 text-sm text-white"
-                style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border, minHeight: 80, textAlignVertical: 'top' }}
+                className="rounded-xl px-4 py-3.5 text-sm"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, minHeight: 80, textAlignVertical: 'top', color: colors.textPrimary }}
                 placeholder="Optional instructions or notes..."
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 value={notes}
                 onChangeText={setNotes}
                 multiline
               />
             </View>
           </View>
-          <Text className="text-xs text-center" style={{ color: COLORS.textSecondary }}>
+          <Text className="text-xs text-center" style={{ color: colors.textSecondary }}>
             After creating the pick list, you can add items and assign it to a team member.
           </Text>
         </ScrollView>

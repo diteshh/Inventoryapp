@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { PickList } from '@/lib/types';
 import { formatRelativeTime, getPickListStatusColor, getPickListStatusLabel } from '@/lib/utils';
 import { router } from 'expo-router';
@@ -21,6 +22,7 @@ import { StatusBadge } from '@/components/ui/Badge';
 const STATUS_FILTERS = ['all', 'draft', 'ready_to_pick', 'in_progress', 'partially_complete', 'complete'] as const;
 
 export default function PickListsScreen() {
+  const { colors, isDark } = useTheme();
   const [pickLists, setPickLists] = useState<PickList[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,37 +69,43 @@ export default function PickListsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <View className="px-5 pt-4 pb-3">
         <View className="mb-3 flex-row items-center justify-between">
-          <Text className="text-xl font-bold text-white" style={{ fontWeight: '800' }}>
+          <Text className="text-xl font-bold" style={{ fontWeight: '800', color: colors.textPrimary }}>
             Pick Lists
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/pick-list/new')}
             className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
-            style={{ backgroundColor: COLORS.teal }}>
-            <Plus color={COLORS.navy} size={16} />
-            <Text className="text-sm font-semibold" style={{ color: COLORS.navy }}>New</Text>
+            style={{ backgroundColor: colors.accent }}>
+            <Plus color={colors.accentOnAccent} size={16} />
+            <Text className="text-sm font-semibold" style={{ color: colors.accentOnAccent }}>New</Text>
           </TouchableOpacity>
         </View>
 
         {/* Search */}
         <View
           className="mb-3 flex-row items-center rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
-          <Search color={COLORS.textSecondary} size={16} />
+          style={{
+            backgroundColor: colors.surface,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? colors.borderLight : 'transparent',
+            ...getCardShadow(isDark),
+          }}>
+          <Search color={colors.textSecondary} size={16} />
           <TextInput
-            className="ml-2 flex-1 text-sm text-white"
+            className="ml-2 flex-1 text-sm"
+            style={{ color: colors.textPrimary }}
             placeholder="Search pick lists..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X color={COLORS.textSecondary} size={16} />
+              <X color={colors.textSecondary} size={16} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -113,13 +121,13 @@ export default function PickListsScreen() {
               onPress={() => setStatusFilter(s)}
               className="mr-2 rounded-full px-3.5 py-1.5"
               style={{
-                backgroundColor: statusFilter === s ? `${COLORS.teal}22` : COLORS.navyCard,
+                backgroundColor: statusFilter === s ? colors.accentMuted : colors.surface,
                 borderWidth: 1,
-                borderColor: statusFilter === s ? `${COLORS.teal}66` : COLORS.border,
+                borderColor: statusFilter === s ? `${colors.accent}66` : colors.border,
               }}>
               <Text
                 className="text-xs font-medium"
-                style={{ color: statusFilter === s ? COLORS.teal : COLORS.textSecondary }}>
+                style={{ color: statusFilter === s ? colors.accent : colors.textSecondary }}>
                 {s === 'all' ? 'All' : getPickListStatusLabel(s)}
               </Text>
             </TouchableOpacity>
@@ -129,36 +137,41 @@ export default function PickListsScreen() {
 
       {/* List */}
       {loading ? (
-        <ActivityIndicator color={COLORS.teal} className="mt-8" />
+        <ActivityIndicator color={colors.accent} className="mt-8" />
       ) : (
         <FlatList
           data={pickLists}
           keyExtractor={(pl) => pl.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.teal} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           ListEmptyComponent={
             <EmptyState
-              icon={<ClipboardList color={COLORS.textSecondary} size={32} />}
+              icon={<ClipboardList color={colors.textSecondary} size={32} />}
               title="No pick lists"
               message="Create your first pick list to start picking inventory."
               actionLabel="New Pick List"
               onAction={() => router.push('/pick-list/new')}
             />
           }
-          renderItem={({ item }) => <PickListCard pickList={item} />}
+          renderItem={({ item }) => <PickListCard pickList={item} colors={colors} isDark={isDark} />}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function PickListCard({ pickList }: { pickList: PickList }) {
-  const statusColor = getPickListStatusColor(pickList.status);
+function PickListCard({ pickList, colors, isDark }: { pickList: PickList; colors: ThemeColors; isDark: boolean }) {
+  const statusColor = getPickListStatusColor(pickList.status, colors);
   return (
     <TouchableOpacity
       onPress={() => router.push(`/pick-list/${pickList.id}`)}
       className="mb-3 rounded-2xl p-4"
-      style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+      style={{
+        backgroundColor: colors.surface,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? colors.borderLight : 'transparent',
+        ...getCardShadow(isDark),
+      }}>
       <View className="mb-3 flex-row items-start justify-between">
         <View className="flex-row items-center gap-3 flex-1">
           <View
@@ -167,9 +180,9 @@ function PickListCard({ pickList }: { pickList: PickList }) {
             <ClipboardList color={statusColor} size={20} />
           </View>
           <View className="flex-1">
-            <Text className="font-semibold text-white" numberOfLines={2}>{pickList.name}</Text>
+            <Text className="font-semibold" style={{ color: colors.textPrimary }} numberOfLines={2}>{pickList.name}</Text>
             {pickList.notes && (
-              <Text className="text-xs mt-0.5" style={{ color: COLORS.textSecondary }} numberOfLines={1}>
+              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }} numberOfLines={1}>
                 {pickList.notes}
               </Text>
             )}
@@ -178,7 +191,7 @@ function PickListCard({ pickList }: { pickList: PickList }) {
         <StatusBadge status={pickList.status} size="sm" />
       </View>
       <View className="flex-row items-center justify-between">
-        <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>
           Updated {formatRelativeTime(pickList.updated_at)}
         </Text>
         {pickList.status !== 'draft' && pickList.status !== 'complete' && (

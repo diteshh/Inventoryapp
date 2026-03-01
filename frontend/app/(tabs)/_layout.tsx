@@ -1,9 +1,9 @@
-import { COLORS } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { Tabs } from 'expo-router';
 import { Home, Package, QrCode, ClipboardList, MoreHorizontal } from 'lucide-react-native';
 import { View, TouchableOpacity } from 'react-native';
 
-function ScannerTabButton({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) {
+function ScannerTabButton({ children, onPress, accentColor }: { children: React.ReactNode; onPress?: () => void; accentColor: string }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -14,10 +14,10 @@ function ScannerTabButton({ children, onPress }: { children: React.ReactNode; on
           width: 60,
           height: 60,
           borderRadius: 30,
-          backgroundColor: COLORS.teal,
+          backgroundColor: accentColor,
           alignItems: 'center',
           justifyContent: 'center',
-          shadowColor: COLORS.teal,
+          shadowColor: accentColor,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.4,
           shadowRadius: 8,
@@ -30,23 +30,25 @@ function ScannerTabButton({ children, onPress }: { children: React.ReactNode; on
 }
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.navyCard,
-          borderTopColor: COLORS.border,
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.tabBarBorder,
           borderTopWidth: 1,
           height: 80,
           paddingBottom: 16,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: COLORS.teal,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '500',
+          fontWeight: '600',
         },
       }}>
       <Tabs.Screen
@@ -67,10 +69,10 @@ export default function TabLayout() {
         name="scanner"
         options={{
           title: 'Scan',
-          tabBarIcon: ({ color }) => <QrCode color={COLORS.navyCard} size={26} />,
+          tabBarIcon: () => <QrCode color={colors.accentOnAccent} size={26} />,
           tabBarButton: (props) => (
-            <ScannerTabButton onPress={props.onPress ?? undefined}>
-              <QrCode color={COLORS.navyCard} size={26} />
+            <ScannerTabButton onPress={props.onPress ?? undefined} accentColor={colors.accent}>
+              <QrCode color={colors.accentOnAccent} size={26} />
             </ScannerTabButton>
           ),
         }}

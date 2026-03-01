@@ -1,4 +1,4 @@
-import { COLORS } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { getPickListStatusColor, getPickListStatusLabel } from '@/lib/utils';
 import React from 'react';
 import { Text, View } from 'react-native';
@@ -9,7 +9,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const color = getPickListStatusColor(status);
+  const { colors } = useTheme();
+  const color = getPickListStatusColor(status, colors);
   const label = getPickListStatusLabel(status);
   const paddingH = size === 'sm' ? 8 : 10;
   const paddingV = size === 'sm' ? 3 : 4;
@@ -36,9 +37,10 @@ interface LowStockBadgeProps {
 }
 
 export function LowStockBadge({ quantity, minQuantity }: LowStockBadgeProps) {
+  const { colors } = useTheme();
   if (quantity > minQuantity) return null;
   const isOut = quantity === 0;
-  const color = isOut ? COLORS.destructive : COLORS.warning;
+  const color = isOut ? colors.destructive : colors.warning;
   const label = isOut ? 'Out of Stock' : 'Low Stock';
 
   return (

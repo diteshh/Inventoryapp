@@ -1,14 +1,16 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
 import { router } from 'expo-router';
 import {
   Activity,
   AlertTriangle,
   ChevronRight,
   LogOut,
+  Moon,
   Package,
   Settings,
+  Sun,
   Tag,
   User,
 } from 'lucide-react-native';
@@ -23,14 +25,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface QuickStat {
-  label: string;
-  value: number;
-  color: string;
-}
-
 export default function MoreScreen() {
   const { user, profile, signOut } = useAuth();
+  const { colors, isDark, toggleTheme } = useTheme();
   const [stats, setStats] = useState<{ lowStock: number; outOfStock: number; activityToday: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -78,11 +75,18 @@ export default function MoreScreen() {
     ]);
   };
 
+  const cardStyle = {
+    backgroundColor: colors.surface,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: isDark ? colors.borderLight : 'transparent',
+    ...getCardShadow(isDark),
+  };
+
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-5 pt-4 pb-3">
-          <Text className="text-xl font-bold text-white" style={{ fontWeight: '800' }}>
+          <Text className="text-xl font-bold" style={{ color: colors.textPrimary, fontWeight: '700' }}>
             More
           </Text>
         </View>
@@ -91,56 +95,57 @@ export default function MoreScreen() {
         <TouchableOpacity
           onPress={() => router.push('/settings')}
           className="mx-5 mb-4 flex-row items-center gap-4 rounded-2xl p-4"
-          style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+          style={cardStyle}>
           <View
             className="items-center justify-center rounded-2xl"
-            style={{ width: 52, height: 52, backgroundColor: `${COLORS.teal}22` }}>
-            <User color={COLORS.teal} size={26} />
+            style={{ width: 52, height: 52, backgroundColor: colors.accentMuted }}>
+            <User color={colors.accent} size={26} />
           </View>
           <View className="flex-1">
-            <Text className="font-bold text-white text-base">
+            <Text className="font-bold text-base" style={{ color: colors.textPrimary }}>
               {profile?.full_name ?? 'User'}
             </Text>
-            <Text className="text-sm mt-0.5" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
               {user?.email}
             </Text>
             <View
               className="mt-1.5 self-start rounded-full px-2.5 py-0.5"
-              style={{ backgroundColor: `${COLORS.teal}22` }}>
-              <Text className="text-xs font-semibold capitalize" style={{ color: COLORS.teal }}>
+              style={{ backgroundColor: colors.accentMuted }}>
+              <Text className="text-xs font-semibold capitalize" style={{ color: colors.accent }}>
                 {profile?.role ?? 'member'}
               </Text>
             </View>
           </View>
-          <ChevronRight color={COLORS.textSecondary} size={18} />
+          <ChevronRight color={colors.textSecondary} size={18} />
         </TouchableOpacity>
 
         {/* Quick stats */}
         <View className="mx-5 mb-4">
-          <Text className="mb-3 text-sm font-semibold" style={{ color: COLORS.textSecondary }}>
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
             ALERTS
           </Text>
           {loadingStats ? (
-            <ActivityIndicator color={COLORS.teal} />
+            <ActivityIndicator color={colors.accent} />
           ) : (
             <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={() => router.push('/low-stock')}
                 className="flex-1 rounded-2xl p-4"
                 style={{
-                  backgroundColor: COLORS.navyCard,
-                  borderWidth: 1,
-                  borderColor: stats?.lowStock || stats?.outOfStock ? `${COLORS.warning}44` : COLORS.border,
+                  ...cardStyle,
+                  borderColor: stats?.lowStock || stats?.outOfStock
+                    ? `${colors.warning}44`
+                    : isDark ? colors.borderLight : 'transparent',
                 }}>
                 <View
                   className="mb-3 self-start rounded-xl p-2"
-                  style={{ backgroundColor: `${COLORS.warning}22` }}>
-                  <AlertTriangle color={COLORS.warning} size={18} />
+                  style={{ backgroundColor: colors.warningMuted }}>
+                  <AlertTriangle color={colors.warning} size={18} />
                 </View>
-                <Text className="text-2xl font-bold text-white" style={{ fontWeight: '800' }}>
+                <Text className="text-2xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }}>
                   {(stats?.lowStock ?? 0) + (stats?.outOfStock ?? 0)}
                 </Text>
-                <Text className="text-xs mt-1" style={{ color: COLORS.textSecondary }}>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
                   Low / Out of Stock
                 </Text>
               </TouchableOpacity>
@@ -148,16 +153,16 @@ export default function MoreScreen() {
               <TouchableOpacity
                 onPress={() => router.push('/activity-log')}
                 className="flex-1 rounded-2xl p-4"
-                style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+                style={cardStyle}>
                 <View
                   className="mb-3 self-start rounded-xl p-2"
-                  style={{ backgroundColor: `${COLORS.teal}22` }}>
-                  <Activity color={COLORS.teal} size={18} />
+                  style={{ backgroundColor: colors.accentMuted }}>
+                  <Activity color={colors.accent} size={18} />
                 </View>
-                <Text className="text-2xl font-bold text-white" style={{ fontWeight: '800' }}>
+                <Text className="text-2xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }}>
                   {stats?.activityToday ?? 0}
                 </Text>
-                <Text className="text-xs mt-1" style={{ color: COLORS.textSecondary }}>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
                   Actions Today
                 </Text>
               </TouchableOpacity>
@@ -167,75 +172,91 @@ export default function MoreScreen() {
 
         {/* Menu items */}
         <View className="mx-5 mb-4">
-          <Text className="mb-3 text-sm font-semibold" style={{ color: COLORS.textSecondary }}>
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
             TOOLS
           </Text>
-          <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
             <MenuRow
-              icon={<AlertTriangle color={COLORS.warning} size={18} />}
-              iconBg={`${COLORS.warning}22`}
+              icon={<AlertTriangle color={colors.warning} size={18} />}
+              iconBg={colors.warningMuted}
               label="Low Stock Alerts"
               subtitle={stats?.outOfStock ? `${stats.outOfStock} out of stock` : undefined}
               onPress={() => router.push('/low-stock')}
+              colors={colors}
             />
-            <Divider />
+            <Divider colors={colors} />
             <MenuRow
-              icon={<Activity color={COLORS.teal} size={18} />}
-              iconBg={`${COLORS.teal}22`}
+              icon={<Activity color={colors.accent} size={18} />}
+              iconBg={colors.accentMuted}
               label="Activity Log"
               onPress={() => router.push('/activity-log')}
+              colors={colors}
             />
-            <Divider />
+            <Divider colors={colors} />
             <MenuRow
-              icon={<Package color="#3B82F6" size={18} />}
-              iconBg="#3B82F622"
+              icon={<Package color={colors.statusReady} size={18} />}
+              iconBg={`${colors.statusReady}22`}
               label="All Inventory"
               onPress={() => router.push('/(tabs)/inventory')}
+              colors={colors}
             />
           </View>
         </View>
 
         <View className="mx-5 mb-4">
-          <Text className="mb-3 text-sm font-semibold" style={{ color: COLORS.textSecondary }}>
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
             ACCOUNT
           </Text>
-          <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
             <MenuRow
-              icon={<Settings color={COLORS.textSecondary} size={18} />}
-              iconBg={`${COLORS.textSecondary}22`}
+              icon={<Settings color={colors.textSecondary} size={18} />}
+              iconBg={`${colors.textSecondary}22`}
               label="Settings"
               subtitle="Profile, PIN, tags"
               onPress={() => router.push('/settings')}
+              colors={colors}
             />
-            <Divider />
+            <Divider colors={colors} />
             <MenuRow
-              icon={<Tag color={COLORS.textSecondary} size={18} />}
-              iconBg={`${COLORS.textSecondary}22`}
+              icon={isDark ? <Moon color={colors.accent} size={18} /> : <Sun color={colors.accent} size={18} />}
+              iconBg={colors.accentMuted}
+              label="Appearance"
+              subtitle={isDark ? 'Dark mode' : 'Light mode'}
+              onPress={toggleTheme}
+              colors={colors}
+              showChevron={false}
+            />
+            <Divider colors={colors} />
+            <MenuRow
+              icon={<Tag color={colors.textSecondary} size={18} />}
+              iconBg={`${colors.textSecondary}22`}
               label="Manage Tags"
               onPress={() => router.push('/settings?tab=tags')}
+              colors={colors}
             />
-            <Divider />
+            <Divider colors={colors} />
             <MenuRow
-              icon={<LogOut color={COLORS.destructive} size={18} />}
-              iconBg={`${COLORS.destructive}22`}
+              icon={<LogOut color={colors.destructive} size={18} />}
+              iconBg={colors.destructiveMuted}
               label="Sign Out"
-              labelColor={COLORS.destructive}
+              labelColor={colors.destructive}
               onPress={handleSignOut}
               showChevron={false}
+              colors={colors}
             />
           </View>
         </View>
 
-        <Text className="text-center text-xs mb-8" style={{ color: COLORS.textSecondary }}>
-          Inventory Manager v1.0
+        <Text className="text-center text-xs mb-8" style={{ color: colors.textTertiary }}>
+          Imperial Inventory v1.0
         </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Divider() {
-  return <View style={{ height: 1, backgroundColor: COLORS.border, marginLeft: 56 }} />;
+function Divider({ colors }: { colors: any }) {
+  return <View style={{ height: 1, backgroundColor: colors.borderLight, marginLeft: 56 }} />;
 }
 
 function MenuRow({
@@ -246,6 +267,7 @@ function MenuRow({
   labelColor,
   onPress,
   showChevron = true,
+  colors,
 }: {
   icon: React.ReactNode;
   iconBg: string;
@@ -254,6 +276,7 @@ function MenuRow({
   labelColor?: string;
   onPress: () => void;
   showChevron?: boolean;
+  colors: any;
 }) {
   return (
     <TouchableOpacity
@@ -265,16 +288,16 @@ function MenuRow({
         {icon}
       </View>
       <View className="flex-1">
-        <Text className="text-sm font-medium" style={{ color: labelColor ?? COLORS.textPrimary }}>
+        <Text className="text-sm font-medium" style={{ color: labelColor ?? colors.textPrimary }}>
           {label}
         </Text>
         {subtitle && (
-          <Text className="text-xs mt-0.5" style={{ color: COLORS.textSecondary }}>
+          <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
             {subtitle}
           </Text>
         )}
       </View>
-      {showChevron && <ChevronRight color={COLORS.textSecondary} size={16} />}
+      {showChevron && <ChevronRight color={colors.textSecondary} size={16} />}
     </TouchableOpacity>
   );
 }

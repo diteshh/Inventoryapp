@@ -5,14 +5,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
 } from 'react-native';
 import { X, Folder as FolderIcon } from 'lucide-react-native';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getElevatedShadow } from '@/lib/theme-context';
 import { supabase } from '@/lib/supabase';
 import { generateSku } from '@/lib/utils';
 
@@ -29,6 +28,7 @@ export function FolderCreationModal({
   onSuccess,
   parentFolderId = null,
 }: FolderCreationModalProps) {
+  const { colors, isDark } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,16 +44,16 @@ export function FolderCreationModal({
     setError(null);
 
     try {
-      const sku = await generateSku('folder'); // Using 'folder' to potentially differentiate if needed, or just standard SKU
+      const sku = await generateSku('folder');
 
-      const { data, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('folders')
         .insert({
           name: name.trim(),
           description: description.trim() || null,
           parent_folder_id: parentFolderId,
           sku,
-          colour: COLORS.teal, // Default color
+          colour: colors.accent,
         })
         .select()
         .single();
@@ -77,43 +77,84 @@ export function FolderCreationModal({
       visible={isVisible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
-    >
+      onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.header}>
-              <View style={styles.headerTitleContainer}>
-                <FolderIcon color={COLORS.teal} size={24} style={styles.headerIcon} />
-                <Text style={styles.title}>New Folder</Text>
+        style={{ flex: 1 }}>
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+          onPress={onClose}>
+          <Pressable
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              backgroundColor: colors.surfaceElevated,
+              borderRadius: 24,
+              padding: 24,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? colors.border : 'transparent',
+              ...getElevatedShadow(isDark),
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <FolderIcon color={colors.accent} size={24} style={{ marginRight: 10 }} />
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>
+                  New Folder
+                </Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X color={COLORS.textSecondary} size={24} />
+              <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+                <X color={colors.textSecondary} size={24} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Folder Name</Text>
+            <View style={{ gap: 20 }}>
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginLeft: 4 }}>
+                  Folder Name
+                </Text>
                 <TextInput
-                  style={styles.input}
+                  style={{
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    padding: 16,
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
                   placeholder="e.g. Ali Express, Amazon"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                   value={name}
                   onChangeText={setName}
                   autoFocus
                 />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Description (Optional)</Text>
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary, marginLeft: 4 }}>
+                  Description (Optional)
+                </Text>
                 <TextInput
-                  style={[styles.input, styles.textArea]}
+                  style={{
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    padding: 16,
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    height: 100,
+                    textAlignVertical: 'top',
+                  }}
                   placeholder="What's inside this folder?"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textTertiary}
                   value={description}
                   onChangeText={setDescription}
                   multiline
@@ -121,17 +162,29 @@ export function FolderCreationModal({
                 />
               </View>
 
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && (
+                <Text style={{ color: colors.destructive, fontSize: 14, textAlign: 'center' }}>
+                  {error}
+                </Text>
+              )}
 
               <TouchableOpacity
-                style={[styles.createButton, loading && styles.disabledButton]}
+                style={{
+                  backgroundColor: colors.accent,
+                  borderRadius: 12,
+                  padding: 16,
+                  alignItems: 'center',
+                  marginTop: 8,
+                  opacity: loading ? 0.6 : 1,
+                }}
                 onPress={handleCreate}
-                disabled={loading}
-              >
+                disabled={loading}>
                 {loading ? (
-                  <ActivityIndicator color={COLORS.navy} />
+                  <ActivityIndicator color={colors.accentOnAccent} />
                 ) : (
-                  <Text style={styles.createButtonText}>Create Folder</Text>
+                  <Text style={{ color: colors.accentOnAccent, fontSize: 16, fontWeight: '700' }}>
+                    Create Folder
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -141,88 +194,3 @@ export function FolderCreationModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: COLORS.navyCard,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    marginRight: 10,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.white,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  form: {
-    gap: 20,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: COLORS.navy,
-    borderRadius: 12,
-    padding: 16,
-    color: COLORS.white,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  errorText: {
-    color: COLORS.destructive,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  createButton: {
-    backgroundColor: COLORS.teal,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  createButtonText: {
-    color: COLORS.navy,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});

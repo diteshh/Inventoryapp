@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { Tag } from '@/lib/types';
 import { impactMedium, notificationSuccess } from '@/lib/haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -9,8 +10,11 @@ import {
   Check,
   Edit2,
   KeyRound,
+  Moon,
   Plus,
   Shield,
+  Smartphone,
+  Sun,
   Tag as TagIcon,
   Trash2,
   User,
@@ -30,6 +34,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { ThemeMode } from '@/lib/theme-context';
 
 const PRESET_COLORS = [
   '#00BFA6', '#3B82F6', '#8B5CF6', '#EC4899',
@@ -37,50 +42,97 @@ const PRESET_COLORS = [
   '#06B6D4', '#84CC16', '#E11D48', '#0EA5E9',
 ];
 
-type SettingsTab = 'profile' | 'security' | 'tags';
+type SettingsTab = 'profile' | 'security' | 'tags' | 'appearance';
 
 export default function SettingsScreen() {
   const { tab: defaultTab } = useLocalSearchParams<{ tab?: string }>();
+  const { colors, isDark, mode, setMode } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     (defaultTab as SettingsTab) ?? 'profile'
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <View className="flex-row items-center justify-between px-5 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-white">Settings</Text>
+        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Settings</Text>
         <View style={{ width: 36 }} />
       </View>
 
       {/* Tab bar */}
-      <View className="mx-5 mb-4 flex-row rounded-xl p-1" style={{ backgroundColor: COLORS.navyCard }}>
-        {(['profile', 'security', 'tags'] as const).map((tab) => (
+      <View className="mx-5 mb-4 flex-row rounded-xl p-1" style={{ backgroundColor: colors.surface }}>
+        {(['profile', 'security', 'tags', 'appearance'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
             className="flex-1 items-center rounded-lg py-2"
-            style={{ backgroundColor: activeTab === tab ? `${COLORS.teal}22` : 'transparent' }}>
+            style={{ backgroundColor: activeTab === tab ? colors.accentMuted : 'transparent' }}>
             <Text
               className="text-xs font-semibold capitalize"
-              style={{ color: activeTab === tab ? COLORS.teal : COLORS.textSecondary }}>
+              style={{ color: activeTab === tab ? colors.accent : colors.textSecondary }}>
               {tab}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {activeTab === 'profile' && <ProfileTab />}
-      {activeTab === 'security' && <SecurityTab />}
-      {activeTab === 'tags' && <TagsTab />}
+      {activeTab === 'profile' && <ProfileTab colors={colors} isDark={isDark} />}
+      {activeTab === 'security' && <SecurityTab colors={colors} isDark={isDark} />}
+      {activeTab === 'tags' && <TagsTab colors={colors} isDark={isDark} />}
+      {activeTab === 'appearance' && <AppearanceTab colors={colors} isDark={isDark} mode={mode} setMode={setMode} />}
     </SafeAreaView>
   );
 }
 
-/* ─── Profile Tab ─── */
-function ProfileTab() {
+/* --- Appearance Tab --- */
+function AppearanceTab({ colors, isDark, mode, setMode }: { colors: ThemeColors; isDark: boolean; mode: ThemeMode; setMode: (m: ThemeMode) => void }) {
+  const options: { key: ThemeMode; label: string; icon: typeof Sun }[] = [
+    { key: 'light', label: 'Light', icon: Sun },
+    { key: 'dark', label: 'Dark', icon: Moon },
+    { key: 'system', label: 'System', icon: Smartphone },
+  ];
+
+  return (
+    <ScrollView className="flex-1 px-5">
+      <View className="rounded-2xl p-4 gap-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+        <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>Theme Mode</Text>
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>
+          Choose how the app looks. "System" follows your device setting.
+        </Text>
+
+        <View className="flex-row gap-3">
+          {options.map((opt) => {
+            const isActive = mode === opt.key;
+            const Icon = opt.icon;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                onPress={() => setMode(opt.key)}
+                className="flex-1 items-center justify-center rounded-xl py-3 gap-2"
+                style={{
+                  backgroundColor: isActive ? colors.accent : colors.surface,
+                  borderWidth: 1,
+                  borderColor: isActive ? colors.accent : colors.border,
+                }}>
+                <Icon color={isActive ? colors.accentOnAccent : colors.textSecondary} size={20} />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: isActive ? colors.accentOnAccent : colors.textSecondary }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+/* --- Profile Tab --- */
+function ProfileTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const { profile, updateProfile, user } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [saving, setSaving] = useState(false);
@@ -96,48 +148,48 @@ function ProfileTab() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView className="flex-1 px-5" keyboardShouldPersistTaps="handled">
-        <View className="rounded-2xl p-4 gap-4" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+        <View className="rounded-2xl p-4 gap-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
           <View
             className="mx-auto items-center justify-center rounded-full mb-2"
-            style={{ width: 72, height: 72, backgroundColor: `${COLORS.teal}22` }}>
-            <User color={COLORS.teal} size={32} />
+            style={{ width: 72, height: 72, backgroundColor: colors.accentMuted }}>
+            <User color={colors.accent} size={32} />
           </View>
 
           <View>
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
               Full Name
             </Text>
             <TextInput
-              className="rounded-xl px-4 py-3.5 text-sm text-white"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+              className="rounded-xl px-4 py-3.5 text-sm"
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
               placeholder="Your full name"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={fullName}
               onChangeText={setFullName}
             />
           </View>
 
           <View>
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
               Email
             </Text>
             <View
               className="rounded-xl px-4 py-3.5"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text className="text-sm" style={{ color: COLORS.textSecondary }}>
-                {user?.email ?? '—'}
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                {user?.email ?? '\u2014'}
               </Text>
             </View>
           </View>
 
           <View>
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
               Role
             </Text>
             <View
               className="rounded-xl px-4 py-3.5"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}>
-              <Text className="text-sm capitalize" style={{ color: COLORS.textSecondary }}>
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+              <Text className="text-sm capitalize" style={{ color: colors.textSecondary }}>
                 {profile?.role ?? 'member'}
               </Text>
             </View>
@@ -147,11 +199,11 @@ function ProfileTab() {
             onPress={save}
             disabled={saving}
             className="items-center rounded-xl py-3.5"
-            style={{ backgroundColor: COLORS.teal }}>
+            style={{ backgroundColor: colors.accent }}>
             {saving ? (
-              <ActivityIndicator color={COLORS.navy} size="small" />
+              <ActivityIndicator color={colors.accentOnAccent} size="small" />
             ) : (
-              <Text className="font-bold" style={{ color: COLORS.navy }}>Save Profile</Text>
+              <Text className="font-bold" style={{ color: colors.accentOnAccent }}>Save Profile</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -160,8 +212,8 @@ function ProfileTab() {
   );
 }
 
-/* ─── Security Tab ─── */
-function SecurityTab() {
+/* --- Security Tab --- */
+function SecurityTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const { setPIN, verifyPIN, hasPIN } = useAuth();
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
@@ -199,24 +251,24 @@ function SecurityTab() {
       <ScrollView className="flex-1 px-5" keyboardShouldPersistTaps="handled">
         <View
           className="mb-4 flex-row items-center gap-3 rounded-xl px-4 py-3"
-          style={{ backgroundColor: `${COLORS.teal}15`, borderWidth: 1, borderColor: `${COLORS.teal}33` }}>
-          <Shield color={COLORS.teal} size={16} />
-          <Text className="flex-1 text-sm" style={{ color: COLORS.teal }}>
+          style={{ backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: colors.accent + '33' }}>
+          <Shield color={colors.accent} size={16} />
+          <Text className="flex-1 text-sm" style={{ color: colors.accent }}>
             {hasPIN ? 'You have a PIN set. Enter your current PIN to change it.' : 'Set a PIN to add an extra layer of security.'}
           </Text>
         </View>
 
-        <View className="rounded-2xl p-4 gap-4" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+        <View className="rounded-2xl p-4 gap-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
           {hasPIN && (
             <View>
-              <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+              <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
                 Current PIN
               </Text>
               <TextInput
-                className="rounded-xl px-4 py-3.5 text-sm text-white"
-                style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+                className="rounded-xl px-4 py-3.5 text-sm"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
                 placeholder="••••"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 value={currentPin}
                 onChangeText={setCurrentPin}
                 secureTextEntry
@@ -227,14 +279,14 @@ function SecurityTab() {
           )}
 
           <View>
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
               {hasPIN ? 'New PIN' : 'PIN'}
             </Text>
             <TextInput
-              className="rounded-xl px-4 py-3.5 text-sm text-white"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+              className="rounded-xl px-4 py-3.5 text-sm"
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
               placeholder="••••"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={newPin}
               onChangeText={setNewPin}
               secureTextEntry
@@ -244,14 +296,14 @@ function SecurityTab() {
           </View>
 
           <View>
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>
               Confirm PIN
             </Text>
             <TextInput
-              className="rounded-xl px-4 py-3.5 text-sm text-white"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+              className="rounded-xl px-4 py-3.5 text-sm"
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
               placeholder="••••"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={confirmPin}
               onChangeText={setConfirmPin}
               secureTextEntry
@@ -264,13 +316,13 @@ function SecurityTab() {
             onPress={handleSetPIN}
             disabled={saving}
             className="flex-row items-center justify-center gap-2 rounded-xl py-3.5"
-            style={{ backgroundColor: COLORS.teal }}>
+            style={{ backgroundColor: colors.accent }}>
             {saving ? (
-              <ActivityIndicator color={COLORS.navy} size="small" />
+              <ActivityIndicator color={colors.accentOnAccent} size="small" />
             ) : (
               <>
-                <KeyRound color={COLORS.navy} size={16} />
-                <Text className="font-bold" style={{ color: COLORS.navy }}>
+                <KeyRound color={colors.accentOnAccent} size={16} />
+                <Text className="font-bold" style={{ color: colors.accentOnAccent }}>
                   {hasPIN ? 'Update PIN' : 'Set PIN'}
                 </Text>
               </>
@@ -282,8 +334,8 @@ function SecurityTab() {
   );
 }
 
-/* ─── Tags Tab ─── */
-function TagsTab() {
+/* --- Tags Tab --- */
+function TagsTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -356,37 +408,37 @@ function TagsTab() {
       <TouchableOpacity
         onPress={openCreate}
         className="mb-4 flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
-        style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: `${COLORS.teal}44`, borderStyle: 'dashed' }}>
-        <Plus color={COLORS.teal} size={16} />
-        <Text className="text-sm font-semibold" style={{ color: COLORS.teal }}>New Tag</Text>
+        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.accent + '44', borderStyle: 'dashed' }}>
+        <Plus color={colors.accent} size={16} />
+        <Text className="text-sm font-semibold" style={{ color: colors.accent }}>New Tag</Text>
       </TouchableOpacity>
 
       {loading ? (
-        <ActivityIndicator color={COLORS.teal} className="mt-8" />
+        <ActivityIndicator color={colors.accent} className="mt-8" />
       ) : tags.length === 0 ? (
         <View className="items-center py-12">
-          <TagIcon color={COLORS.textSecondary} size={32} />
-          <Text className="mt-3 text-sm" style={{ color: COLORS.textSecondary }}>
+          <TagIcon color={colors.textSecondary} size={32} />
+          <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
             No tags yet. Create one to start organizing items.
           </Text>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+          <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
             {tags.map((tag, idx) => (
               <View key={tag.id}>
-                {idx > 0 && <View style={{ height: 1, backgroundColor: COLORS.border }} />}
+                {idx > 0 && <View style={{ height: 1, backgroundColor: colors.border }} />}
                 <View className="flex-row items-center gap-3 px-4 py-3.5">
                   <View
                     className="rounded-full"
-                    style={{ width: 14, height: 14, backgroundColor: tag.colour ?? COLORS.teal }}
+                    style={{ width: 14, height: 14, backgroundColor: tag.colour ?? colors.accent }}
                   />
-                  <Text className="flex-1 text-sm font-medium text-white">{tag.name}</Text>
-                  <TouchableOpacity onPress={() => openEdit(tag)} className="p-2 rounded-lg mr-1" style={{ backgroundColor: `${COLORS.teal}22` }}>
-                    <Edit2 color={COLORS.teal} size={14} />
+                  <Text className="flex-1 text-sm font-medium" style={{ color: colors.textPrimary }}>{tag.name}</Text>
+                  <TouchableOpacity onPress={() => openEdit(tag)} className="p-2 rounded-lg mr-1" style={{ backgroundColor: colors.accentMuted }}>
+                    <Edit2 color={colors.accent} size={14} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteTag(tag)} className="p-2 rounded-lg" style={{ backgroundColor: `${COLORS.destructive}22` }}>
-                    <Trash2 color={COLORS.destructive} size={14} />
+                  <TouchableOpacity onPress={() => deleteTag(tag)} className="p-2 rounded-lg" style={{ backgroundColor: colors.destructiveMuted }}>
+                    <Trash2 color={colors.destructive} size={14} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -397,27 +449,27 @@ function TagsTab() {
 
       {/* Tag modal */}
       <Modal visible={showModal} transparent animationType="fade" onRequestClose={() => setShowModal(false)}>
-        <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="w-full rounded-2xl p-5" style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: COLORS.border }}>
+        <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: colors.overlay }}>
+          <View className="w-full rounded-2xl p-5" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-base font-bold text-white">{editTag ? 'Edit Tag' : 'New Tag'}</Text>
+              <Text className="text-base font-bold" style={{ color: colors.textPrimary }}>{editTag ? 'Edit Tag' : 'New Tag'}</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
-                <X color={COLORS.textSecondary} size={20} />
+                <X color={colors.textSecondary} size={20} />
               </TouchableOpacity>
             </View>
 
-            <Text className="mb-1.5 text-xs font-medium" style={{ color: COLORS.textSecondary }}>Tag Name</Text>
+            <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Tag Name</Text>
             <TextInput
-              className="rounded-xl px-4 py-3 text-sm text-white mb-4"
-              style={{ backgroundColor: COLORS.navy, borderWidth: 1, borderColor: COLORS.border }}
+              className="rounded-xl px-4 py-3 text-sm mb-4"
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
               placeholder="e.g. Electronics"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={tagName}
               onChangeText={setTagName}
               autoFocus
             />
 
-            <Text className="mb-2 text-xs font-medium" style={{ color: COLORS.textSecondary }}>Colour</Text>
+            <Text className="mb-2 text-xs font-medium" style={{ color: colors.textSecondary }}>Colour</Text>
             <View className="flex-row flex-wrap gap-2.5 mb-4">
               {PRESET_COLORS.map((c) => (
                 <TouchableOpacity
@@ -434,11 +486,11 @@ function TagsTab() {
               onPress={saveTag}
               disabled={saving}
               className="items-center rounded-xl py-3"
-              style={{ backgroundColor: COLORS.teal }}>
+              style={{ backgroundColor: colors.accent }}>
               {saving ? (
-                <ActivityIndicator color={COLORS.navy} size="small" />
+                <ActivityIndicator color={colors.accentOnAccent} size="small" />
               ) : (
-                <Text className="font-bold" style={{ color: COLORS.navy }}>
+                <Text className="font-bold" style={{ color: colors.accentOnAccent }}>
                   {editTag ? 'Save Changes' : 'Create Tag'}
                 </Text>
               )}

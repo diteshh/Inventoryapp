@@ -1,22 +1,34 @@
 import '@/global.css';
 import 'react-native-url-polyfill/auto';
 
-import { NAV_THEME } from '@/lib/theme';
-import { ThemeProvider } from '@react-navigation/native';
+import { buildNavTheme } from '@/lib/theme';
+import { ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '@/lib/auth-context';
+import { ThemeProvider, useTheme } from '@/lib/theme-context';
 import { ErrorBoundary } from './error-boundary';
+
+function AppInner() {
+  const { colors, isDark } = useTheme();
+  const navTheme = buildNavTheme(colors, isDark);
+
+  return (
+    <NavThemeProvider value={navTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.statusBarBg} />
+      <Stack screenOptions={{ headerShown: false }} />
+    </NavThemeProvider>
+  );
+}
 
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ThemeProvider value={NAV_THEME.dark}>
-          <StatusBar style="light" backgroundColor="#1B2838" />
-          <Stack screenOptions={{ headerShown: false }} />
-        </ThemeProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppInner />
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

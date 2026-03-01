@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { COLORS } from '@/lib/theme';
+import { useTheme, getCardShadow } from '@/lib/theme-context';
+import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { router } from 'expo-router';
@@ -18,17 +19,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 type LowStockItem = Item & { folder?: Folder | null };
 type Filter = 'all' | 'low' | 'out';
 
-const FILTERS: { key: Filter; label: string; color: string }[] = [
-  { key: 'all', label: 'All Alerts', color: COLORS.warning },
-  { key: 'out', label: 'Out of Stock', color: COLORS.destructive },
-  { key: 'low', label: 'Low Stock', color: COLORS.warning },
-];
-
 export default function LowStockScreen() {
+  const { colors, isDark } = useTheme();
   const [items, setItems] = useState<LowStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+
+  const FILTERS: { key: Filter; label: string; color: string; mutedColor: string }[] = [
+    { key: 'all', label: 'All Alerts', color: colors.warning, mutedColor: colors.warningMuted },
+    { key: 'out', label: 'Out of Stock', color: colors.destructive, mutedColor: colors.destructiveMuted },
+    { key: 'low', label: 'Low Stock', color: colors.warning, mutedColor: colors.warningMuted },
+  ];
 
   const load = useCallback(async () => {
     // Fetch all active items, then filter client-side since min_quantity comparison
@@ -60,32 +62,32 @@ export default function LowStockScreen() {
   }, [load]);
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: COLORS.navy }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: COLORS.navyCard }}>
-          <ArrowLeft color={COLORS.textPrimary} size={20} />
+        <TouchableOpacity onPress={() => router.back()} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-white">Low Stock Alerts</Text>
+        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Low Stock Alerts</Text>
         <TouchableOpacity
           onPress={() => { setRefreshing(true); load(); }}
           className="rounded-xl p-2"
-          style={{ backgroundColor: COLORS.navyCard }}>
-          <RefreshCw color={COLORS.textSecondary} size={18} />
+          style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+          <RefreshCw color={colors.textSecondary} size={18} />
         </TouchableOpacity>
       </View>
 
       {/* Filter tabs */}
-      <View className="mx-5 mb-4 flex-row rounded-xl p-1" style={{ backgroundColor: COLORS.navyCard }}>
+      <View className="mx-5 mb-4 flex-row rounded-xl p-1" style={{ backgroundColor: colors.surface }}>
         {FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
             onPress={() => setFilter(f.key)}
             className="flex-1 items-center rounded-lg py-2"
-            style={{ backgroundColor: filter === f.key ? `${f.color}22` : 'transparent' }}>
+            style={{ backgroundColor: filter === f.key ? f.mutedColor : 'transparent' }}>
             <Text
               className="text-xs font-semibold"
-              style={{ color: filter === f.key ? f.color : COLORS.textSecondary }}>
+              style={{ color: filter === f.key ? f.color : colors.textSecondary }}>
               {f.label}
             </Text>
           </TouchableOpacity>
@@ -93,20 +95,20 @@ export default function LowStockScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={COLORS.teal} className="mt-8" />
+        <ActivityIndicator color={colors.accent} className="mt-8" />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.teal} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
           ListHeaderComponent={
             items.length > 0 ? (
               <View
                 className="mb-4 flex-row items-center gap-2.5 rounded-xl px-4 py-3"
-                style={{ backgroundColor: `${COLORS.warning}15`, borderWidth: 1, borderColor: `${COLORS.warning}33` }}>
-                <AlertTriangle color={COLORS.warning} size={16} />
-                <Text className="text-sm" style={{ color: COLORS.warning }}>
+                style={{ backgroundColor: colors.warningMuted, borderWidth: 1, borderColor: colors.warning + '33' }}>
+                <AlertTriangle color={colors.warning} size={16} />
+                <Text className="text-sm" style={{ color: colors.warning }}>
                   {items.length} item{items.length !== 1 ? 's' : ''} need{items.length === 1 ? 's' : ''} restocking
                 </Text>
               </View>
@@ -116,52 +118,53 @@ export default function LowStockScreen() {
             <View className="items-center py-16">
               <View
                 className="mb-4 items-center justify-center rounded-full"
-                style={{ width: 72, height: 72, backgroundColor: `${COLORS.success}22` }}>
-                <Package color={COLORS.success} size={32} />
+                style={{ width: 72, height: 72, backgroundColor: colors.successMuted }}>
+                <Package color={colors.success} size={32} />
               </View>
-              <Text className="text-base font-semibold text-white">All stocked up!</Text>
-              <Text className="mt-2 text-sm text-center" style={{ color: COLORS.textSecondary }}>
+              <Text className="text-base font-semibold" style={{ color: colors.textPrimary }}>All stocked up!</Text>
+              <Text className="mt-2 text-sm text-center" style={{ color: colors.textSecondary }}>
                 No items are below their minimum quantity.
               </Text>
             </View>
           }
-          renderItem={({ item }) => <LowStockItemRow item={item} />}
+          renderItem={({ item }) => <LowStockItemRow item={item} colors={colors} isDark={isDark} />}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function LowStockItemRow({ item }: { item: LowStockItem }) {
+function LowStockItemRow({ item, colors, isDark }: { item: LowStockItem; colors: ThemeColors; isDark: boolean }) {
   const isOut = item.quantity === 0;
-  const alertColor = isOut ? COLORS.destructive : COLORS.warning;
+  const alertColor = isOut ? colors.destructive : colors.warning;
+  const alertMutedColor = isOut ? colors.destructiveMuted : colors.warningMuted;
   const label = isOut ? 'Out of Stock' : 'Low Stock';
 
   return (
     <TouchableOpacity
       onPress={() => router.push(`/item/${item.id}`)}
       className="mb-2.5 rounded-2xl p-4"
-      style={{ backgroundColor: COLORS.navyCard, borderWidth: 1, borderColor: `${alertColor}44` }}>
+      style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
       <View className="flex-row items-center gap-3">
         <View
           className="items-center justify-center rounded-xl p-2.5"
-          style={{ backgroundColor: `${alertColor}22` }}>
+          style={{ backgroundColor: alertMutedColor }}>
           <AlertTriangle color={alertColor} size={18} />
         </View>
 
         <View className="flex-1">
-          <Text className="font-semibold text-white" numberOfLines={1}>{item.name}</Text>
+          <Text className="font-semibold" style={{ color: colors.textPrimary }} numberOfLines={1}>{item.name}</Text>
           <View className="flex-row flex-wrap items-center gap-2 mt-0.5">
             {item.sku && (
-              <Text className="text-xs" style={{ color: COLORS.textSecondary }}>{item.sku}</Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>{item.sku}</Text>
             )}
-            {(item.folders as any)?.name && (
-              <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
-                📁 {(item.folders as any).name}
+            {(item.folder as any)?.name && (
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                {(item.folder as any).name}
               </Text>
             )}
             {item.location && (
-              <Text className="text-xs" style={{ color: COLORS.teal }}>📍 {item.location}</Text>
+              <Text className="text-xs" style={{ color: colors.accent }}>{item.location}</Text>
             )}
           </View>
         </View>
@@ -169,17 +172,17 @@ function LowStockItemRow({ item }: { item: LowStockItem }) {
         <View className="items-end gap-1.5">
           <View
             className="rounded-full px-2.5 py-0.5"
-            style={{ backgroundColor: `${alertColor}22`, borderWidth: 1, borderColor: `${alertColor}44` }}>
+            style={{ backgroundColor: alertMutedColor, borderWidth: 1, borderColor: alertColor + '44' }}>
             <Text className="text-xs font-semibold" style={{ color: alertColor }}>{label}</Text>
           </View>
           <Text className="text-sm font-bold" style={{ color: alertColor }}>
             {item.quantity}
-            <Text className="text-xs font-normal" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs font-normal" style={{ color: colors.textSecondary }}>
               {' '}/ {item.min_quantity} min
             </Text>
           </Text>
           {(item.cost_price || item.sell_price) && (
-            <Text className="text-xs" style={{ color: COLORS.textSecondary }}>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {formatCurrency(item.sell_price ?? item.cost_price)}
             </Text>
           )}

@@ -25,3 +25,6 @@ Thumbs.db
 
 # Orchids
 .orchids/
+
+# Supabase local/temp
+supabase/.temp/
