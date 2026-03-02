@@ -1,77 +1,39 @@
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import { router } from 'expo-router';
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
+  Bell,
   ChevronRight,
   LogOut,
   Moon,
-  Package,
   Settings,
   Sun,
   Tag,
+  Upload,
   User,
+  Users,
 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Alert,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function MoreScreen() {
+export default function MenuScreen() {
   const { user, profile, signOut } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
-  const [stats, setStats] = useState<{ lowStock: number; outOfStock: number; activityToday: number } | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const [itemsRes, activityRes] = await Promise.all([
-        supabase.from('items').select('quantity, min_quantity').eq('status', 'active'),
-        supabase
-          .from('activity_log')
-          .select('id', { count: 'exact', head: true })
-          .gte('timestamp', today.toISOString()),
-      ]);
-
-      const items = itemsRes.data ?? [];
-      const lowStock = items.filter((i) => i.quantity > 0 && i.quantity <= i.min_quantity).length;
-      const outOfStock = items.filter((i) => i.quantity === 0).length;
-
-      setStats({
-        lowStock,
-        outOfStock,
-        activityToday: activityRes.count ?? 0,
-      });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => signOut(),
-      },
+      { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
     ]);
   };
 
@@ -87,7 +49,7 @@ export default function MoreScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-5 pt-4 pb-3">
           <Text className="text-xl font-bold" style={{ color: colors.textPrimary, fontWeight: '700' }}>
-            More
+            Menu
           </Text>
         </View>
 
@@ -119,90 +81,7 @@ export default function MoreScreen() {
           <ChevronRight color={colors.textSecondary} size={18} />
         </TouchableOpacity>
 
-        {/* Quick stats */}
-        <View className="mx-5 mb-4">
-          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
-            ALERTS
-          </Text>
-          {loadingStats ? (
-            <ActivityIndicator color={colors.accent} />
-          ) : (
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={() => router.push('/low-stock')}
-                className="flex-1 rounded-2xl p-4"
-                style={{
-                  ...cardStyle,
-                  borderColor: stats?.lowStock || stats?.outOfStock
-                    ? `${colors.warning}44`
-                    : isDark ? colors.borderLight : 'transparent',
-                }}>
-                <View
-                  className="mb-3 self-start rounded-xl p-2"
-                  style={{ backgroundColor: colors.warningMuted }}>
-                  <AlertTriangle color={colors.warning} size={18} />
-                </View>
-                <Text className="text-2xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }}>
-                  {(stats?.lowStock ?? 0) + (stats?.outOfStock ?? 0)}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                  Low / Out of Stock
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => router.push('/activity-log')}
-                className="flex-1 rounded-2xl p-4"
-                style={cardStyle}>
-                <View
-                  className="mb-3 self-start rounded-xl p-2"
-                  style={{ backgroundColor: colors.accentMuted }}>
-                  <Activity color={colors.accent} size={18} />
-                </View>
-                <Text className="text-2xl font-bold" style={{ color: colors.textPrimary, fontWeight: '800' }}>
-                  {stats?.activityToday ?? 0}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-                  Actions Today
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Menu items */}
-        <View className="mx-5 mb-4">
-          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
-            TOOLS
-          </Text>
-          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
-            <MenuRow
-              icon={<AlertTriangle color={colors.warning} size={18} />}
-              iconBg={colors.warningMuted}
-              label="Low Stock Alerts"
-              subtitle={stats?.outOfStock ? `${stats.outOfStock} out of stock` : undefined}
-              onPress={() => router.push('/low-stock')}
-              colors={colors}
-            />
-            <Divider colors={colors} />
-            <MenuRow
-              icon={<Activity color={colors.accent} size={18} />}
-              iconBg={colors.accentMuted}
-              label="Activity Log"
-              onPress={() => router.push('/activity-log')}
-              colors={colors}
-            />
-            <Divider colors={colors} />
-            <MenuRow
-              icon={<Package color={colors.statusReady} size={18} />}
-              iconBg={`${colors.statusReady}22`}
-              label="All Inventory"
-              onPress={() => router.push('/(tabs)/inventory')}
-              colors={colors}
-            />
-          </View>
-        </View>
-
+        {/* Account section */}
         <View className="mx-5 mb-4">
           <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
             ACCOUNT
@@ -211,8 +90,8 @@ export default function MoreScreen() {
             <MenuRow
               icon={<Settings color={colors.textSecondary} size={18} />}
               iconBg={`${colors.textSecondary}22`}
-              label="Settings"
-              subtitle="Profile, PIN, tags"
+              label="User Profile"
+              subtitle="Profile, PIN, preferences"
               onPress={() => router.push('/settings')}
               colors={colors}
             />
@@ -226,15 +105,94 @@ export default function MoreScreen() {
               colors={colors}
               showChevron={false}
             />
-            <Divider colors={colors} />
+          </View>
+        </View>
+
+        {/* Tools section */}
+        <View className="mx-5 mb-4">
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            TOOLS
+          </Text>
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
             <MenuRow
-              icon={<Tag color={colors.textSecondary} size={18} />}
-              iconBg={`${colors.textSecondary}22`}
-              label="Manage Tags"
-              onPress={() => router.push('/settings?tab=tags')}
+              icon={<BarChart3 color={colors.accent} size={18} />}
+              iconBg={colors.accentMuted}
+              label="Reports"
+              subtitle="Inventory summary, activity, transactions"
+              onPress={() => router.push('/reports')}
               colors={colors}
             />
             <Divider colors={colors} />
+            <MenuRow
+              icon={<Tag color={colors.statusInProgress} size={18} />}
+              iconBg={`${colors.statusInProgress}22`}
+              label="Tags Management"
+              onPress={() => router.push('/tags')}
+              colors={colors}
+            />
+            <Divider colors={colors} />
+            <MenuRow
+              icon={<Users color={colors.statusReady} size={18} />}
+              iconBg={`${colors.statusReady}22`}
+              label="Manage Team"
+              onPress={() => router.push('/team')}
+              colors={colors}
+            />
+            <Divider colors={colors} />
+            <MenuRow
+              icon={<Bell color={colors.accent} size={18} />}
+              iconBg={colors.accentMuted}
+              label="Notifications"
+              onPress={() => router.push('/notifications')}
+              colors={colors}
+            />
+          </View>
+        </View>
+
+        {/* Alerts section */}
+        <View className="mx-5 mb-4">
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            ALERTS
+          </Text>
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
+            <MenuRow
+              icon={<AlertTriangle color={colors.warning} size={18} />}
+              iconBg={colors.warningMuted}
+              label="Low Stock Alerts"
+              onPress={() => router.push('/low-stock')}
+              colors={colors}
+            />
+            <Divider colors={colors} />
+            <MenuRow
+              icon={<Activity color={colors.accent} size={18} />}
+              iconBg={colors.accentMuted}
+              label="Activity Log"
+              onPress={() => router.push('/activity-log')}
+              colors={colors}
+            />
+          </View>
+        </View>
+
+        {/* Data section */}
+        <View className="mx-5 mb-4">
+          <Text className="mb-3" style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+            DATA
+          </Text>
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
+            <MenuRow
+              icon={<Upload color={colors.textSecondary} size={18} />}
+              iconBg={`${colors.textSecondary}22`}
+              label="Bulk Import"
+              subtitle="Coming soon"
+              onPress={() => Alert.alert('Coming Soon', 'Bulk import will be available in a future update.')}
+              colors={colors}
+            />
+          </View>
+        </View>
+
+        {/* Sign out */}
+        <View className="mx-5 mb-4">
+          <View className="rounded-2xl overflow-hidden" style={cardStyle}>
             <MenuRow
               icon={<LogOut color={colors.destructive} size={18} />}
               iconBg={colors.destructiveMuted}

@@ -1,6 +1,6 @@
 import { useTheme } from '@/lib/theme-context';
 import { Tabs } from 'expo-router';
-import { Home, Package, QrCode, ClipboardList, MoreHorizontal } from 'lucide-react-native';
+import { Home, Package, QrCode, Layers, Menu } from 'lucide-react-native';
 import { View, TouchableOpacity } from 'react-native';
 
 function ScannerTabButton({ children, onPress, accentColor }: { children: React.ReactNode; onPress?: () => void; accentColor: string }) {
@@ -71,7 +71,7 @@ export default function TabLayout() {
           title: 'Scan',
           tabBarIcon: () => <QrCode color={colors.accentOnAccent} size={26} />,
           tabBarButton: (props) => (
-            <ScannerTabButton onPress={props.onPress ?? undefined} accentColor={colors.accent}>
+            <ScannerTabButton onPress={props.onPress ? () => (props.onPress as any)() : undefined} accentColor={colors.accent}>
               <QrCode color={colors.accentOnAccent} size={26} />
             </ScannerTabButton>
           ),
@@ -80,15 +80,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="pick-lists"
         options={{
-          title: 'Pick Lists',
-          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
+          title: 'Workflows',
+          tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
-          title: 'More',
-          tabBarIcon: ({ color, size }) => <MoreHorizontal color={color} size={size} />,
+          title: 'Menu',
+          tabBarIcon: ({ color, size }) => <Menu color={color} size={size} />,
         }}
       />
     </Tabs>

@@ -66,17 +66,17 @@ export default function InventoryScreen() {
       const folderId = currentFolder?.id ?? null;
 
       // Load subfolders with stats and thumbnails
-      const { data: foldersData } = await supabase
+      const { data: foldersData } = await (supabase
         .from('folders')
         .select(`
           *,
           stats:folder_stats(subfolder_count, unit_count, total_value),
           thumbs:folder_thumbnails(thumbnails)
-        `)
+        `) as any)
         .is('parent_folder_id', folderId)
         .order('name');
 
-      const enhancedFolders = (foldersData ?? []).map(f => ({
+      const enhancedFolders = (foldersData ?? []).map((f: any) => ({
         ...f,
         subfolder_count: f.stats?.[0]?.subfolder_count ?? 0,
         unit_count: f.stats?.[0]?.unit_count ?? 0,

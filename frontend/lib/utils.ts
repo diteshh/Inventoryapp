@@ -16,7 +16,7 @@ export async function logActivity(
     action_type: actionType,
     item_id: options?.itemId ?? null,
     pick_list_id: options?.pickListId ?? null,
-    details: options?.details ?? {},
+    details: (options?.details ?? {}) as import('./types').Json,
   });
 }
 
@@ -105,9 +105,81 @@ export function getActionLabel(actionType: string): string {
       return 'Pick list completed';
     case 'item_picked':
       return 'Item picked';
+    case 'stock_count_created':
+      return 'Stock count created';
+    case 'stock_count_completed':
+      return 'Stock count completed';
+    case 'po_created':
+      return 'Purchase order created';
+    case 'po_updated':
+      return 'Purchase order updated';
+    case 'po_received':
+      return 'Purchase order received';
+    case 'item_received':
+      return 'Item received';
     default:
       return actionType.replace(/_/g, ' ');
   }
+}
+
+export function getStockCountStatusColor(status: string, colors?: { statusDraft: string; statusInProgress: string; statusComplete: string }): string {
+  const c = colors ?? { statusDraft: '#7D8590', statusInProgress: '#D29922', statusComplete: '#3FB950' };
+  switch (status) {
+    case 'draft': return c.statusDraft;
+    case 'in_progress': return c.statusInProgress;
+    case 'complete': return c.statusComplete;
+    default: return c.statusDraft;
+  }
+}
+
+export function getStockCountStatusLabel(status: string): string {
+  switch (status) {
+    case 'draft': return 'Draft';
+    case 'in_progress': return 'In Progress';
+    case 'complete': return 'Complete';
+    default: return status;
+  }
+}
+
+export function getPOStatusColor(status: string, colors?: { statusDraft: string; statusReady: string; statusInProgress: string; statusPartial: string; statusComplete: string }): string {
+  const c = colors ?? { statusDraft: '#7D8590', statusReady: '#58A6FF', statusInProgress: '#D29922', statusPartial: '#F0883E', statusComplete: '#3FB950' };
+  switch (status) {
+    case 'draft': return c.statusDraft;
+    case 'ordered': return c.statusReady;
+    case 'partially_received': return c.statusPartial;
+    case 'received': return c.statusComplete;
+    case 'cancelled': return c.statusDraft;
+    default: return c.statusDraft;
+  }
+}
+
+export function getPOStatusLabel(status: string): string {
+  switch (status) {
+    case 'draft': return 'Draft';
+    case 'ordered': return 'Ordered';
+    case 'partially_received': return 'Partial';
+    case 'received': return 'Received';
+    case 'cancelled': return 'Cancelled';
+    default: return status;
+  }
+}
+
+export function getTransactionTypeLabel(type: string): string {
+  switch (type) {
+    case 'pick': return 'Picked';
+    case 'restock': return 'Restocked';
+    case 'adjustment': return 'Adjusted';
+    case 'receive': return 'Received';
+    case 'stock_count': return 'Stock Count';
+    default: return type;
+  }
+}
+
+export function generatePONumber(): string {
+  const now = new Date();
+  const datePart = now.toISOString().slice(2, 10).replace(/-/g, '');
+  const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `PO-${datePart}-${rand}`;
 }
 
 export function getPhotoUrl(path: string | null | undefined): string | null {
