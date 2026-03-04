@@ -488,7 +488,7 @@ function ListItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
         </View>
       ) : (
         <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.background }}>
-          <Package color={colors.textSecondary} size={28} />
+          <Package color={colors.accent} size={28} />
         </View>
       )}
 
@@ -550,7 +550,7 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
         {photoUrl ? (
           <Image source={{ uri: photoUrl }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
         ) : (
-          <Package color={colors.textSecondary} size={36} />
+          <Package color={colors.accent} size={36} />
         )}
       </View>
       <View className="p-3" style={{ flex: 1 }}>

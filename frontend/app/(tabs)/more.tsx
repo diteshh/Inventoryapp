@@ -239,6 +239,7 @@ function MenuRow({
   return (
     <TouchableOpacity
       onPress={onPress}
+      activeOpacity={0.7}
       className="flex-row items-center gap-3 px-4 py-3.5">
       <View
         className="items-center justify-center rounded-xl"
