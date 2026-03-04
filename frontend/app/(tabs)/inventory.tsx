@@ -12,17 +12,19 @@ import {
   LayoutList,
   Package,
   Search,
-  X,
   Home,
   MoreHorizontal,
+  SlidersHorizontal,
+  Check,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
+  Modal,
+  Pressable,
   RefreshControl,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   ActivityIndicator,
@@ -31,7 +33,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LowStockBadge } from '@/components/ui/Badge';
 import { InventoryFAB } from '@/components/InventoryFAB';
-import { FolderCreationModal } from '@/components/FolderCreationModal';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'date' | 'quantity' | 'value';
@@ -50,13 +51,13 @@ export default function InventoryScreen() {
   const [breadcrumbs, setBreadcrumbs] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<EnhancedFolder[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [filterLowStock, setFilterLowStock] = useState(params.filter === 'low_stock');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const isFilterActive = filterLowStock || sortBy !== 'name';
 
   // Global stats (all items across all folders) for root-level display
   const [globalStats, setGlobalStats] = useState<{ totalQuantity: number; totalValue: number; totalItems: number } | null>(null);
@@ -97,9 +98,6 @@ export default function InventoryScreen() {
         query = query.is('folder_id', null);
       }
 
-      if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%,barcode.ilike.%${searchQuery}%`);
-      }
 
       const { data: itemsData } = await query;
 
@@ -131,38 +129,11 @@ export default function InventoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentFolder, searchQuery, filterLowStock, sortBy]);
-
-  // Global search across all folders
-  const searchAll = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      loadData();
-      return;
-    }
-    const { data } = await supabase
-      .from('items')
-      .select('*')
-      .eq('status', 'active')
-      .or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%,description.ilike.%${q}%`)
-      .limit(50);
-    setFolders([]);
-    setItems((data ?? []) as Item[]);
-  }, [loadData]);
+  }, [currentFolder, filterLowStock, sortBy]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchAll(searchQuery);
-      } else {
-        loadData();
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   const navigateToFolder = async (folder: Folder) => {
     setBreadcrumbs((prev) => [...prev, currentFolder].filter(Boolean) as Folder[]);
@@ -201,12 +172,24 @@ export default function InventoryScreen() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       {/* Header */}
-      <View className="px-5 pt-4 pb-3">
+      <View className="px-5 pt-4 pb-1">
         <View className="mb-3 flex-row items-center justify-between">
           <Text className="text-xl font-bold" style={{ fontWeight: '800', color: colors.textPrimary }}>
             Inventory
           </Text>
           <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => router.push('/search' as any)}
+              className="rounded-xl p-2.5"
+              style={{ backgroundColor: colors.surface }}>
+              <Search color={colors.textSecondary} size={18} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowFilter(true)}
+              className="rounded-xl p-2.5"
+              style={{ backgroundColor: isFilterActive ? colors.accentMuted : colors.surface }}>
+              <SlidersHorizontal color={isFilterActive ? colors.accent : colors.textSecondary} size={18} />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               className="rounded-xl p-2.5"
@@ -221,7 +204,7 @@ export default function InventoryScreen() {
         </View>
 
         {/* Stats Bar */}
-        <View className="mb-4 flex-row justify-between rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+        <View className="mb-2 flex-row justify-between rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
           <View className="items-center">
             <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '700' }}>FOLDERS</Text>
             <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>{totalFolders}</Text>
@@ -240,25 +223,6 @@ export default function InventoryScreen() {
           </View>
         </View>
 
-        {/* Search */}
-        <View
-          className="flex-row items-center rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-          <Search color={colors.textSecondary} size={16} />
-          <TextInput
-            className="ml-2 flex-1 text-sm"
-            placeholder="Search items, SKU, barcode..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={{ color: colors.textPrimary }}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X color={colors.textSecondary} size={16} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
 
         {/* Folder Navigation Bar */}
         {currentFolder && (
@@ -314,41 +278,6 @@ export default function InventoryScreen() {
           </View>
         )}
 
-        {/* Filter chips */}
-        <View className="mt-3 flex-row items-center gap-2">
-          <TouchableOpacity
-            onPress={() => setFilterLowStock(!filterLowStock)}
-            className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-            style={{
-              backgroundColor: filterLowStock ? colors.warningMuted : colors.surface,
-              borderWidth: 1,
-              borderColor: filterLowStock ? `${colors.warning}66` : colors.border,
-            }}>
-            <Filter color={filterLowStock ? colors.warning : colors.textSecondary} size={12} />
-            <Text
-              className="text-xs font-medium"
-              style={{ color: filterLowStock ? colors.warning : colors.textSecondary }}>
-              Low Stock
-            </Text>
-          </TouchableOpacity>
-          {(['name', 'date', 'quantity'] as SortBy[]).map((s) => (
-            <TouchableOpacity
-              key={s}
-              onPress={() => setSortBy(s)}
-              className="rounded-full px-3 py-1.5"
-              style={{
-                backgroundColor: sortBy === s ? colors.accentMuted : colors.surface,
-                borderWidth: 1,
-                borderColor: sortBy === s ? `${colors.accent}66` : colors.border,
-              }}>
-              <Text
-                className="text-xs font-medium"
-                style={{ color: sortBy === s ? colors.accent : colors.textSecondary }}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       {/* Content */}
@@ -393,15 +322,62 @@ export default function InventoryScreen() {
       <InventoryFAB
         currentFolderId={currentFolder?.id}
         currentFolderName={currentFolder?.name}
-        onAddFolderPress={() => setIsFolderModalVisible(true)}
       />
 
-      <FolderCreationModal
-        isVisible={isFolderModalVisible}
-        onClose={() => setIsFolderModalVisible(false)}
-        onSuccess={loadData}
-        parentFolderId={currentFolder?.id}
-      />
+      {/* Filter Modal */}
+      <Modal visible={showFilter} transparent animationType="fade" onRequestClose={() => setShowFilter(false)}>
+        <Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setShowFilter(false)}>
+          <Pressable
+            className="mx-5 mt-24 rounded-2xl p-5"
+            style={{ backgroundColor: colors.surface }}
+            onPress={(e) => e.stopPropagation()}>
+            <Text className="text-lg font-bold mb-4" style={{ color: colors.textPrimary }}>Filters & Sort</Text>
+
+            {/* Low Stock Filter */}
+            <TouchableOpacity
+              onPress={() => setFilterLowStock(!filterLowStock)}
+              className="flex-row items-center justify-between py-3"
+              style={{ borderBottomWidth: 1, borderColor: colors.border }}>
+              <View className="flex-row items-center gap-2">
+                <Filter color={filterLowStock ? colors.warning : colors.textSecondary} size={16} />
+                <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>Low Stock Only</Text>
+              </View>
+              {filterLowStock && <Check color={colors.accent} size={18} />}
+            </TouchableOpacity>
+
+            {/* Sort Options */}
+            <Text className="text-xs font-bold mt-4 mb-2" style={{ color: colors.textSecondary }}>SORT BY</Text>
+            {(['name', 'date', 'quantity', 'value'] as SortBy[]).map((s) => (
+              <TouchableOpacity
+                key={s}
+                onPress={() => setSortBy(s)}
+                className="flex-row items-center justify-between py-3"
+                style={{ borderBottomWidth: 1, borderColor: colors.border }}>
+                <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </Text>
+                {sortBy === s && <Check color={colors.accent} size={18} />}
+              </TouchableOpacity>
+            ))}
+
+            {/* Reset & Done */}
+            <View className="flex-row gap-3 mt-5">
+              <TouchableOpacity
+                onPress={() => { setFilterLowStock(false); setSortBy('name'); }}
+                className="flex-1 items-center py-3 rounded-xl"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowFilter(false)}
+                className="flex-1 items-center py-3 rounded-xl"
+                style={{ backgroundColor: colors.accent }}>
+                <Text className="text-sm font-semibold" style={{ color: '#fff' }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -412,18 +388,24 @@ function FolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolde
       onPress={onPress}
       className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-      {/* Thumbnail Grid */}
-      <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
-        {[0, 1, 2, 3].map((i) => (
-          <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
-            {folder.thumbnails?.[i] ? (
-              <Image source={{ uri: folder.thumbnails[i] }} className="h-full w-full" resizeMode="cover" />
-            ) : (
-              <Package color={colors.textSecondary} size={12} />
-            )}
-          </View>
-        ))}
-      </View>
+      {/* Thumbnail / Cover Image */}
+      {folder.cover_image ? (
+        <View className="mr-4 h-[60px] w-[60px] rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
+          <Image source={{ uri: folder.cover_image }} className="h-full w-full" resizeMode="cover" />
+        </View>
+      ) : (
+        <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
+              {folder.thumbnails?.[i] ? (
+                <Image source={{ uri: folder.thumbnails[i] }} className="h-full w-full" resizeMode="cover" />
+              ) : (
+                <Package color={colors.textSecondary} size={12} />
+              )}
+            </View>
+          ))}
+        </View>
+      )}
 
       <View className="flex-1">
         <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{folder.sku || 'NO SKU'}</Text>

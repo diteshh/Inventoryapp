@@ -32,3 +32,6 @@ supabase/.temp/
 # Apple keys
 *.p8
 .keys/
+
+# Sensitive setup docs
+TEAM_SETUP.md

@@ -19,14 +19,11 @@ import { router } from 'expo-router';
 interface InventoryFABProps {
   currentFolderId?: string;
   currentFolderName?: string;
-  onFolderCreated?: () => void;
-  onAddFolderPress: () => void;
 }
 
 export function InventoryFAB({
   currentFolderId,
   currentFolderName = 'Items',
-  onAddFolderPress,
 }: InventoryFABProps) {
   const { colors, isDark } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +53,11 @@ export function InventoryFAB({
 
   const handleAddFolder = () => {
     toggleOpen();
-    onAddFolderPress();
+    if (currentFolderId) {
+      router.push(`/folder/add?parent_folder_id=${currentFolderId}` as any);
+    } else {
+      router.push('/folder/add' as any);
+    }
   };
 
   return (

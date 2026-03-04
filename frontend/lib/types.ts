@@ -11,6 +11,7 @@ export interface Database {
           icon: string | null;
           colour: string | null;
           description: string | null;
+          cover_image: string | null;
           sku: string | null;
           created_at: string;
           updated_at: string;
@@ -22,6 +23,7 @@ export interface Database {
           icon?: string | null;
           colour?: string | null;
           description?: string | null;
+          cover_image?: string | null;
           sku?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -33,6 +35,7 @@ export interface Database {
           icon?: string | null;
           colour?: string | null;
           description?: string | null;
+          cover_image?: string | null;
           sku?: string | null;
           updated_at?: string;
         };
