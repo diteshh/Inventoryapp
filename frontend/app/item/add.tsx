@@ -310,7 +310,7 @@ export default function AddEditItemScreen() {
           <FormSection title="Basic Information" colors={colors} isDark={isDark}>
             <FormField label="Name *" value={form.name} onChangeText={(v) => f('name', v)} placeholder="Item name" colors={colors} />
             <FormField label="Description" value={form.description} onChangeText={(v) => f('description', v)} placeholder="Optional description" multiline colors={colors} />
-            <FormField label="SKU" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="Stock keeping unit" colors={colors} />
+            <FormField label="Unique ID" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="Unique identifier" colors={colors} />
             <View>
               <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Barcode</Text>
               <View className="flex-row items-center gap-2">

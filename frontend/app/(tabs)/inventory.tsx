@@ -3,11 +3,12 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   ChevronRight,
   Filter,
+  FolderOpen,
   Grid2X2,
   LayoutList,
   Package,
@@ -66,23 +67,42 @@ export default function InventoryScreen() {
     try {
       const folderId = currentFolder?.id ?? null;
 
-      // Load subfolders with stats and thumbnails
-      const { data: foldersData } = await (supabase
-        .from('folders')
-        .select(`
-          *,
-          stats:folder_stats(subfolder_count, unit_count, total_value),
-          thumbs:folder_thumbnails(thumbnails)
-        `) as any)
-        .is('parent_folder_id', folderId)
-        .order('name');
+      // Load subfolders
+      let folderQuery = supabase.from('folders').select('*');
+      if (folderId) {
+        folderQuery = folderQuery.eq('parent_folder_id', folderId);
+      } else {
+        folderQuery = folderQuery.is('parent_folder_id', null);
+      }
+      const { data: foldersData } = await folderQuery.order('name');
+      const folderIds = (foldersData ?? []).map((f: any) => f.id);
+
+      // Fetch stats and thumbnails separately
+      let statsMap: Record<string, any> = {};
+      let thumbsMap: Record<string, string[]> = {};
+      if (folderIds.length > 0) {
+        const { data: statsData } = await supabase
+          .from('folder_stats')
+          .select('*')
+          .in('folder_id', folderIds);
+        for (const s of (statsData ?? []) as any[]) {
+          statsMap[s.folder_id] = s;
+        }
+        const { data: thumbsData } = await supabase
+          .from('folder_thumbnails')
+          .select('*')
+          .in('folder_id', folderIds);
+        for (const t of (thumbsData ?? []) as any[]) {
+          thumbsMap[t.folder_id] = t.thumbnails ?? [];
+        }
+      }
 
       const enhancedFolders = (foldersData ?? []).map((f: any) => ({
         ...f,
-        subfolder_count: f.stats?.[0]?.subfolder_count ?? 0,
-        unit_count: f.stats?.[0]?.unit_count ?? 0,
-        total_value: f.stats?.[0]?.total_value ?? 0,
-        thumbnails: f.thumbs?.[0]?.thumbnails ?? [],
+        subfolder_count: statsMap[f.id]?.subfolder_count ?? 0,
+        unit_count: statsMap[f.id]?.unit_count ?? 0,
+        total_value: statsMap[f.id]?.total_value ?? 0,
+        thumbnails: thumbsMap[f.id] ?? [],
       })) as EnhancedFolder[];
 
       // Load items in this folder
@@ -134,6 +154,13 @@ export default function InventoryScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Reload data when screen regains focus (e.g. after adding a folder/item)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const navigateToFolder = async (folder: Folder) => {
     setBreadcrumbs((prev) => [...prev, currentFolder].filter(Boolean) as Folder[]);
@@ -192,6 +219,7 @@ export default function InventoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              activeOpacity={1}
               className="rounded-xl p-2.5"
               style={{ backgroundColor: colors.surface }}>
               {viewMode === 'grid' ? (
@@ -297,11 +325,21 @@ export default function InventoryScreen() {
               title="No items here"
               message={currentFolder ? `${currentFolder.name} is empty.` : 'Add your first inventory item to get started.'}
               actionLabel="Add Item"
-              onAction={() => router.push('/item/add')}
+              onAction={() => router.push(currentFolder ? `/item/add?folder_id=${currentFolder.id}` : '/item/add')}
             />
           }
           renderItem={({ item }) => {
             if ((item as any)._type === 'folder') {
+              if (viewMode === 'grid') {
+                return (
+                  <GridFolderCard
+                    folder={item as EnhancedFolder}
+                    onPress={() => navigateToFolder(item as unknown as Folder)}
+                    colors={colors}
+                    isDark={isDark}
+                  />
+                );
+              }
               return (
                 <FolderCard
                   folder={item as EnhancedFolder}
@@ -393,7 +431,7 @@ function FolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolde
         <View className="mr-4 h-[60px] w-[60px] rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
           <Image source={{ uri: folder.cover_image }} className="h-full w-full" resizeMode="cover" />
         </View>
-      ) : (
+      ) : folder.thumbnails?.length ? (
         <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
           {[0, 1, 2, 3].map((i) => (
             <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
@@ -405,10 +443,14 @@ function FolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolde
             </View>
           ))}
         </View>
+      ) : (
+        <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.background }}>
+          <FolderOpen color={colors.accent} size={28} />
+        </View>
       )}
 
       <View className="flex-1">
-        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{folder.sku || 'NO SKU'}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{folder.id.slice(0, 8).toUpperCase()}</Text>
         <Text className="font-bold text-base leading-tight" numberOfLines={1} style={{ color: colors.textPrimary }}>{folder.name}</Text>
         <View className="mt-1 flex-row items-center">
           <Package color={colors.textSecondary} size={12} style={{ marginRight: 4 }} />
@@ -432,21 +474,26 @@ function ListItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
       onPress={onPress}
       className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-      {/* Thumbnail Grid (Always grid style as per prompt) */}
-      <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
-        {[0, 1, 2, 3].map((i) => (
-          <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
-            {item.photos?.[i] ? (
-              <Image source={{ uri: item.photos[i] }} className="h-full w-full" resizeMode="cover" />
-            ) : (
-              <Package color={colors.textSecondary} size={12} />
-            )}
-          </View>
-        ))}
-      </View>
+      {item.photos?.length ? (
+        <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
+              {item.photos?.[i] ? (
+                <Image source={{ uri: item.photos[i] }} className="h-full w-full" resizeMode="cover" />
+              ) : (
+                <View />
+              )}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.background }}>
+          <Package color={colors.textSecondary} size={28} />
+        </View>
+      )}
 
       <View className="flex-1">
-        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{item.sku || 'NO SKU'}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{item.id.slice(0, 8).toUpperCase()}</Text>
         <Text className="font-bold text-base leading-tight" numberOfLines={1} style={{ color: colors.textPrimary }}>{item.name}</Text>
         <View className="mt-1 flex-row items-center">
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
@@ -462,13 +509,41 @@ function ListItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
   );
 }
 
+function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolder; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
+      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+      <View
+        className="items-center justify-center"
+        style={{ height: 130, backgroundColor: colors.border }}>
+        {folder.cover_image ? (
+          <Image source={{ uri: folder.cover_image }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
+        ) : (
+          <FolderOpen color={colors.accent} size={36} />
+        )}
+      </View>
+      <View className="p-3" style={{ flex: 1 }}>
+        <Text className="font-semibold text-sm" numberOfLines={1} style={{ color: colors.textPrimary }}>{folder.name}</Text>
+        <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
+          {folder.subfolder_count || 0} folders | {folder.unit_count || 0} units
+        </Text>
+        <Text className="mt-0.5 text-xs font-medium" style={{ color: colors.accent }}>
+          {formatCurrency(folder.total_value)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
   const photoUrl = item.photos?.[0];
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="mx-1.5 mb-3 flex-1 rounded-2xl overflow-hidden"
-      style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+      className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
+      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
       <View
         className="items-center justify-center"
         style={{ height: 130, backgroundColor: colors.border }}>
@@ -478,8 +553,8 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
           <Package color={colors.textSecondary} size={36} />
         )}
       </View>
-      <View className="p-3">
-        <Text className="font-semibold text-sm" numberOfLines={2} style={{ color: colors.textPrimary }}>{item.name}</Text>
+      <View className="p-3" style={{ flex: 1 }}>
+        <Text className="font-semibold text-sm" numberOfLines={1} style={{ color: colors.textPrimary }}>{item.name}</Text>
         <View className="mt-1.5 flex-row items-center justify-between">
           <Text className="text-xs font-medium" style={{ color: colors.accent }}>
             {item.quantity} units

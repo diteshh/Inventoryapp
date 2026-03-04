@@ -27,7 +27,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AddFolderScreen() {
-  const { parent_folder_id: parentFolderId } = useLocalSearchParams<{ parent_folder_id?: string }>();
+  const params = useLocalSearchParams<{ parent_folder_id?: string }>();
+  const parentFolderId = Array.isArray(params.parent_folder_id) ? params.parent_folder_id[0] : params.parent_folder_id;
   const { colors, isDark } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
