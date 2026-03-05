@@ -1,4 +1,6 @@
+import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Tag } from '@/lib/types';
 import { router, useFocusEffect } from 'expo-router';
@@ -35,6 +37,8 @@ const PRESET_COLORS = [
 ];
 
 export default function TagsScreen() {
+  const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +108,7 @@ export default function TagsScreen() {
       } else {
         const { error } = await supabase
           .from('tags')
-          .insert({ name: tagName.trim(), colour: tagColor });
+          .insert({ name: tagName.trim(), colour: tagColor, team_id: teamId ?? null, created_by: user?.id ?? null });
         if (error) throw error;
       }
       setModalVisible(false);

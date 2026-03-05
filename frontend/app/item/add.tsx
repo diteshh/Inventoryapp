@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item, Tag } from '@/lib/types';
@@ -69,6 +70,7 @@ export default function AddEditItemScreen() {
   const { id, folder_id: paramFolderId } = useLocalSearchParams<{ id?: string; barcode?: string; folder_id?: string }>();
   const params = useLocalSearchParams<{ barcode?: string }>();
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const isEdit = !!id;
   const [form, setForm] = useState<ItemForm>({
@@ -174,7 +176,7 @@ export default function AddEditItemScreen() {
 
   const createTag = async () => {
     if (!newTagName.trim()) return;
-    const { data } = await supabase.from('tags').insert({ name: newTagName.trim(), colour: colors.accent }).select().single();
+    const { data } = await supabase.from('tags').insert({ name: newTagName.trim(), colour: colors.accent, team_id: teamId ?? null, created_by: user?.id ?? null }).select().single();
     if (data) {
       const tag = data as Tag;
       setAllTags((prev) => [...prev, tag]);
@@ -210,18 +212,18 @@ export default function AddEditItemScreen() {
     let itemId = id;
     if (isEdit && id) {
       await supabase.from('items').update(payload).eq('id', id);
-      await logActivity(user?.id, 'item_updated', { itemId: id, details: { item_name: form.name } });
+      await logActivity(user?.id, 'item_updated', { itemId: id, details: { item_name: form.name }, teamId });
     } else {
-      const { data } = await supabase.from('items').insert({ ...payload, status: 'active' }).select().single();
+      const { data } = await supabase.from('items').insert({ ...payload, status: 'active', team_id: teamId ?? null }).select().single();
       itemId = data?.id;
-      await logActivity(user?.id, 'item_created', { itemId, details: { item_name: form.name } });
+      await logActivity(user?.id, 'item_created', { itemId, details: { item_name: form.name }, teamId });
     }
 
     // Update tags
     if (itemId) {
       await supabase.from('item_tags').delete().eq('item_id', itemId);
       if (selectedTags.length > 0) {
-        await supabase.from('item_tags').insert(selectedTags.map((t) => ({ item_id: itemId!, tag_id: t.id })));
+        await supabase.from('item_tags').insert(selectedTags.map((t) => ({ item_id: itemId!, tag_id: t.id, team_id: teamId ?? null })));
       }
     }
 

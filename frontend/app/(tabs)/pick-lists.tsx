@@ -83,20 +83,20 @@ export default function WorkflowsScreen() {
     {
       title: 'Stock Counts',
       description: 'Verify inventory accuracy with physical counts',
-      icon: <ClipboardCheck color={colors.statusInProgress} size={24} />,
-      iconBg: `${colors.statusInProgress}22`,
-      count: stats.stockCounts,
+      icon: <ClipboardCheck color={colors.textSecondary} size={24} />,
+      iconBg: `${colors.textSecondary}22`,
+      count: 0,
       countLabel: 'active',
-      onPress: () => router.push('/stock-count/'),
+      comingSoon: true,
     },
     {
       title: 'Purchase Orders',
       description: 'Track orders from suppliers and receive items',
-      icon: <Truck color={colors.accent} size={24} />,
-      iconBg: colors.accentMuted,
-      count: stats.purchaseOrders,
+      icon: <Truck color={colors.textSecondary} size={24} />,
+      iconBg: `${colors.textSecondary}22`,
+      count: 0,
       countLabel: 'open',
-      onPress: () => router.push('/purchase-order/'),
+      comingSoon: true,
     },
   ];
 
@@ -122,9 +122,11 @@ export default function WorkflowsScreen() {
             {workflows.map((wf) => (
               <TouchableOpacity
                 key={wf.title}
-                onPress={wf.onPress}
+                onPress={wf.comingSoon ? undefined : wf.onPress}
+                activeOpacity={wf.comingSoon ? 1 : 0.2}
+                disabled={wf.comingSoon}
                 className="rounded-2xl p-4"
-                style={cardStyle}>
+                style={[cardStyle, wf.comingSoon && { opacity: 0.55 }]}>
                 <View className="flex-row items-center">
                   <View
                     className="items-center justify-center rounded-2xl"
@@ -132,13 +134,22 @@ export default function WorkflowsScreen() {
                     {wf.icon}
                   </View>
                   <View className="flex-1 ml-4">
-                    <Text className="font-bold text-base" style={{ color: colors.textPrimary }}>
-                      {wf.title}
-                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <Text className="font-bold text-base" style={{ color: wf.comingSoon ? colors.textSecondary : colors.textPrimary }}>
+                        {wf.title}
+                      </Text>
+                      {wf.comingSoon && (
+                        <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.border }}>
+                          <Text className="text-[10px] font-bold" style={{ color: colors.textSecondary }}>
+                            COMING SOON
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                     <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
                       {wf.description}
                     </Text>
-                    {wf.count > 0 && (
+                    {!wf.comingSoon && wf.count > 0 && (
                       <View
                         className="mt-2 self-start rounded-full px-2.5 py-0.5"
                         style={{ backgroundColor: colors.accentMuted }}>
@@ -148,7 +159,7 @@ export default function WorkflowsScreen() {
                       </View>
                     )}
                   </View>
-                  <ChevronRight color={colors.textSecondary} size={18} />
+                  {!wf.comingSoon && <ChevronRight color={colors.textSecondary} size={18} />}
                 </View>
               </TouchableOpacity>
             ))}

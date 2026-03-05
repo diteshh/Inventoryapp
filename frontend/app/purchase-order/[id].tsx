@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Item, PurchaseOrder, PurchaseOrderItem } from '@/lib/types';
 import {
@@ -33,6 +34,7 @@ type POItemWithItem = PurchaseOrderItem & { items: Item | null };
 export default function PurchaseOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [po, setPO] = useState<PurchaseOrder | null>(null);
   const [items, setItems] = useState<POItemWithItem[]>([]);
@@ -108,12 +110,14 @@ export default function PurchaseOrderDetailScreen() {
           performed_by: user?.id,
           item_name: currentItem.name,
           notes: `PO: ${po?.po_number}`,
+          team_id: teamId ?? null,
         });
       }
 
       await logActivity(user?.id, 'item_received', {
         itemId: poi.item_id,
         details: { poNumber: po?.po_number, quantity: actualReceived },
+        teamId,
       });
 
       // Check if all items fully received and update PO status
@@ -147,7 +151,7 @@ export default function PurchaseOrderDetailScreen() {
     if (!po || po.status !== 'draft') return;
     await supabase.from('purchase_orders').update({ status: 'ordered', order_date: new Date().toISOString() }).eq('id', id);
     setPO(prev => prev ? { ...prev, status: 'ordered' } : prev);
-    await logActivity(user?.id, 'po_updated', { details: { poNumber: po.po_number, status: 'ordered' } });
+    await logActivity(user?.id, 'po_updated', { details: { poNumber: po.po_number, status: 'ordered' }, teamId });
   };
 
   if (loading) {

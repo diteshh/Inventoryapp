@@ -8,6 +8,7 @@ export async function logActivity(
     itemId?: string;
     pickListId?: string;
     details?: Record<string, unknown>;
+    teamId?: string;
   }
 ) {
   if (!userId) return;
@@ -17,6 +18,7 @@ export async function logActivity(
     item_id: options?.itemId ?? null,
     pick_list_id: options?.pickListId ?? null,
     details: (options?.details ?? {}) as import('./types').Json,
+    team_id: options?.teamId ?? null,
   });
 }
 

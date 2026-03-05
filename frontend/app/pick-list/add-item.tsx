@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Item } from '@/lib/types';
@@ -25,6 +26,7 @@ interface SelectedItem {
 
 export default function AddItemToPickListScreen() {
   const { pickListId } = useLocalSearchParams<{ pickListId: string }>();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<Item[]>([]);
@@ -113,6 +115,7 @@ export default function AddItemToPickListScreen() {
       location_hint: s.locationHint || null,
       unit_price: s.item.sell_price ?? s.item.cost_price ?? null,
       sort_order: sortOrder++,
+      team_id: teamId ?? null,
     }));
 
     const { error } = await supabase.from('pick_list_items').insert(inserts);

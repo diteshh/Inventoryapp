@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Item } from '@/lib/types';
 import { generatePONumber, logActivity } from '@/lib/utils';
@@ -37,6 +38,7 @@ type POLineItem = {
 
 export default function NewPurchaseOrderScreen() {
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [poNumber] = useState(generatePONumber());
   const [supplierName, setSupplierName] = useState('');
@@ -120,6 +122,7 @@ export default function NewPurchaseOrderScreen() {
           notes: notes.trim() || null,
           created_by: user?.id,
           status: 'draft',
+          team_id: teamId ?? null,
         })
         .select()
         .single();
@@ -135,7 +138,7 @@ export default function NewPurchaseOrderScreen() {
       const { error: itemsError } = await supabase.from('purchase_order_items').insert(itemRows);
       if (itemsError) throw itemsError;
 
-      await logActivity(user?.id, 'po_created', { details: { poNumber, supplier: supplierName.trim() } });
+      await logActivity(user?.id, 'po_created', { details: { poNumber, supplier: supplierName.trim() }, teamId });
 
       router.replace(`/purchase-order/${po.id}`);
     } catch (e: any) {

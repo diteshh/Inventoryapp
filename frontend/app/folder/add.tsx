@@ -1,4 +1,6 @@
+import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import { generateSku } from '@/lib/utils';
@@ -29,7 +31,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function AddFolderScreen() {
   const params = useLocalSearchParams<{ parent_folder_id?: string }>();
   const parentFolderId = Array.isArray(params.parent_folder_id) ? params.parent_folder_id[0] : params.parent_folder_id;
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const { teamId } = useTeam();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -101,6 +105,8 @@ export default function AddFolderScreen() {
           sku,
           colour: colors.accent,
           cover_image: coverImage,
+          team_id: teamId ?? null,
+          created_by: user?.id ?? null,
         })
         .select()
         .single();

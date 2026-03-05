@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { ActivityLog, Folder, Item, Tag } from '@/lib/types';
@@ -44,6 +45,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { can } = usePermission();
   const { colors, isDark } = useTheme();
   const [item, setItem] = useState<Item | null>(null);
@@ -103,6 +105,7 @@ export default function ItemDetailScreen() {
       await logActivity(user?.id, 'quantity_adjusted', {
         itemId: item.id,
         details: { item_name: item.name, old_qty: item.quantity, new_qty: newQty, reason: qtyReason, adjustment: qtyAdjust },
+        teamId,
       });
         notificationSuccess();
       setItem({ ...item, quantity: newQty });
@@ -122,7 +125,7 @@ export default function ItemDetailScreen() {
         onPress: async () => {
           if (!item) return;
           await supabase.from('items').update({ status: 'deleted' }).eq('id', item.id);
-          await logActivity(user?.id, 'item_deleted', { itemId: item.id, details: { item_name: item.name } });
+          await logActivity(user?.id, 'item_deleted', { itemId: item.id, details: { item_name: item.name }, teamId });
           router.back();
         },
       },

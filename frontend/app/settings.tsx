@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Tag } from '@/lib/types';
@@ -342,6 +343,8 @@ function SecurityTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean 
 
 /* --- Tags Tab --- */
 function TagsTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
+  const { user } = useAuth();
+  const { teamId } = useTeam();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -384,7 +387,7 @@ function TagsTab({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
     if (editTag) {
       await supabase.from('tags').update({ name: tagName.trim(), colour: tagColor }).eq('id', editTag.id);
     } else {
-      await supabase.from('tags').insert({ name: tagName.trim(), colour: tagColor });
+      await supabase.from('tags').insert({ name: tagName.trim(), colour: tagColor, team_id: teamId ?? null, created_by: user?.id ?? null });
     }
 
       notificationSuccess();

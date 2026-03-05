@@ -13,6 +13,8 @@ export interface Database {
           description: string | null;
           cover_image: string | null;
           sku: string | null;
+          team_id: string | null;
+          created_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -25,6 +27,8 @@ export interface Database {
           description?: string | null;
           cover_image?: string | null;
           sku?: string | null;
+          team_id?: string | null;
+          created_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +41,8 @@ export interface Database {
           description?: string | null;
           cover_image?: string | null;
           sku?: string | null;
+          team_id?: string | null;
+          created_by?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -54,18 +60,24 @@ export interface Database {
           id: string;
           name: string;
           colour: string | null;
+          team_id: string | null;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           colour?: string | null;
+          team_id?: string | null;
+          created_by?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
           colour?: string | null;
+          team_id?: string | null;
+          created_by?: string | null;
         };
         Relationships: [];
       };
@@ -88,6 +100,7 @@ export interface Database {
           location: string | null;
           notes: string | null;
           status: string;
+          team_id: string;
           created_at: string;
           updated_at: string;
           created_by: string | null;
@@ -110,6 +123,7 @@ export interface Database {
           location?: string | null;
           notes?: string | null;
           status?: string;
+          team_id?: string | null;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -132,6 +146,7 @@ export interface Database {
           location?: string | null;
           notes?: string | null;
           status?: string;
+          team_id?: string | null;
           updated_at?: string;
           created_by?: string | null;
         };
@@ -149,14 +164,17 @@ export interface Database {
         Row: {
           item_id: string;
           tag_id: string;
+          team_id: string | null;
         };
         Insert: {
           item_id: string;
           tag_id: string;
+          team_id?: string | null;
         };
         Update: {
           item_id?: string;
           tag_id?: string;
+          team_id?: string | null;
         };
         Relationships: [
           {
@@ -182,6 +200,7 @@ export interface Database {
           status: string;
           assigned_to: string | null;
           notes: string | null;
+          team_id: string | null;
           created_at: string;
           updated_at: string;
           created_by: string | null;
@@ -192,6 +211,7 @@ export interface Database {
           status?: string;
           assigned_to?: string | null;
           notes?: string | null;
+          team_id?: string | null;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -202,6 +222,7 @@ export interface Database {
           status?: string;
           assigned_to?: string | null;
           notes?: string | null;
+          team_id?: string;
           updated_at?: string;
           created_by?: string | null;
         };
@@ -219,6 +240,7 @@ export interface Database {
           picked_at: string | null;
           picked_by: string | null;
           sort_order: number;
+          team_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -232,6 +254,7 @@ export interface Database {
           picked_at?: string | null;
           picked_by?: string | null;
           sort_order?: number;
+          team_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -245,6 +268,7 @@ export interface Database {
           picked_at?: string | null;
           picked_by?: string | null;
           sort_order?: number;
+          team_id?: string;
         };
         Relationships: [
           {
@@ -271,6 +295,7 @@ export interface Database {
           item_id: string | null;
           pick_list_id: string | null;
           details: Json;
+          team_id: string | null;
           timestamp: string;
         };
         Insert: {
@@ -280,6 +305,7 @@ export interface Database {
           item_id?: string | null;
           pick_list_id?: string | null;
           details?: Json;
+          team_id?: string | null;
           timestamp?: string;
         };
         Update: {
@@ -289,6 +315,7 @@ export interface Database {
           item_id?: string | null;
           pick_list_id?: string | null;
           details?: Json;
+          team_id?: string;
           timestamp?: string;
         };
         Relationships: [];
@@ -334,6 +361,7 @@ export interface Database {
           pick_list_id: string;
           user_id: string | null;
           content: string;
+          team_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -341,6 +369,7 @@ export interface Database {
           pick_list_id: string;
           user_id?: string | null;
           content: string;
+          team_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -348,6 +377,7 @@ export interface Database {
           pick_list_id?: string;
           user_id?: string | null;
           content?: string;
+          team_id?: string;
         };
         Relationships: [
           {
@@ -366,6 +396,7 @@ export interface Database {
           status: string;
           notes: string | null;
           created_by: string | null;
+          team_id: string | null;
           created_at: string;
           updated_at: string;
           completed_at: string | null;
@@ -376,6 +407,7 @@ export interface Database {
           status?: string;
           notes?: string | null;
           created_by?: string | null;
+          team_id?: string | null;
           created_at?: string;
           updated_at?: string;
           completed_at?: string | null;
@@ -386,6 +418,7 @@ export interface Database {
           status?: string;
           notes?: string | null;
           created_by?: string | null;
+          team_id?: string;
           updated_at?: string;
           completed_at?: string | null;
         };
@@ -452,6 +485,7 @@ export interface Database {
           order_date: string | null;
           expected_date: string | null;
           created_by: string | null;
+          team_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -464,6 +498,7 @@ export interface Database {
           order_date?: string | null;
           expected_date?: string | null;
           created_by?: string | null;
+          team_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -476,6 +511,7 @@ export interface Database {
           order_date?: string | null;
           expected_date?: string | null;
           created_by?: string | null;
+          team_id?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -585,6 +621,7 @@ export interface Database {
           notes: string | null;
           folder_name: string | null;
           item_name: string | null;
+          team_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -600,6 +637,7 @@ export interface Database {
           notes?: string | null;
           folder_name?: string | null;
           item_name?: string | null;
+          team_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -615,6 +653,7 @@ export interface Database {
           notes?: string | null;
           folder_name?: string | null;
           item_name?: string | null;
+          team_id?: string;
         };
         Relationships: [
           {
@@ -622,6 +661,94 @@ export interface Database {
             columns: ['item_id'];
             isOneToOne: false;
             referencedRelation: 'items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      teams: {
+        Row: {
+          id: string;
+          name: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      team_members: {
+        Row: {
+          id: string;
+          team_id: string;
+          user_id: string;
+          role: string;
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          user_id: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          user_id?: string;
+          role?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'team_members_team_id_fkey';
+            columns: ['team_id'];
+            isOneToOne: false;
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      team_invites: {
+        Row: {
+          id: string;
+          team_id: string;
+          invite_code: string;
+          created_by: string | null;
+          expires_at: string;
+          used_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          team_id: string;
+          invite_code: string;
+          created_by?: string | null;
+          expires_at?: string;
+          used_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          team_id?: string;
+          invite_code?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          used_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'team_invites_team_id_fkey';
+            columns: ['team_id'];
+            isOneToOne: false;
+            referencedRelation: 'teams';
             referencedColumns: ['id'];
           },
         ];
@@ -640,6 +767,32 @@ export interface Database {
     };
     Enums: Record<string, never>;
   };
+}
+
+// Team types (not in Database interface since managed separately)
+export interface Team {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member';
+  joined_at: string;
+}
+
+export interface TeamInvite {
+  id: string;
+  team_id: string;
+  invite_code: string;
+  created_by: string | null;
+  expires_at: string;
+  used_by: string | null;
+  created_at: string;
 }
 
 // Convenience types

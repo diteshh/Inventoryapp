@@ -1,6 +1,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item } from '@/lib/types';
@@ -53,6 +54,7 @@ type EnhancedFolder = Folder & {
 
 export default function InventoryScreen() {
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { can } = usePermission();
   const { colors, isDark } = useTheme();
   const params = useLocalSearchParams<{ filter?: string; folder_id?: string }>();
@@ -214,7 +216,7 @@ export default function InventoryScreen() {
               await supabase.from('folders').delete().in('id', subIds);
             }
             await supabase.from('folders').delete().eq('id', folder.id);
-            await logActivity(user?.id, 'item_deleted', { details: { folder_name: folder.name, type: 'folder' } });
+            await logActivity(user?.id, 'item_deleted', { details: { folder_name: folder.name, type: 'folder' }, teamId });
             impactMedium();
             loadData();
           },
@@ -231,7 +233,7 @@ export default function InventoryScreen() {
         style: 'destructive',
         onPress: async () => {
           await supabase.from('items').update({ status: 'deleted' }).eq('id', item.id);
-          await logActivity(user?.id, 'item_deleted', { itemId: item.id, details: { item_name: item.name } });
+          await logActivity(user?.id, 'item_deleted', { itemId: item.id, details: { item_name: item.name }, teamId });
           impactMedium();
           loadData();
         },

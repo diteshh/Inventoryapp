@@ -7,6 +7,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, Text, TextInput } from 'react-native';
 import { AuthProvider } from '@/lib/auth-context';
+import { TeamProvider } from '@/lib/team-context';
 import { ThemeProvider, useTheme } from '@/lib/theme-context';
 import { ErrorBoundary } from './error-boundary';
 
@@ -53,7 +54,9 @@ export default function RootLayout() {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <AppInner />
+          <TeamProvider>
+            <AppInner />
+          </TeamProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

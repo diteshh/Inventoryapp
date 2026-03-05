@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import { logActivity } from '@/lib/utils';
 import { router } from 'expo-router';
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NewPickListScreen() {
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
@@ -39,6 +41,7 @@ export default function NewPickListScreen() {
         notes: notes.trim() || null,
         status: 'draft',
         created_by: user?.id,
+        team_id: teamId ?? null,
       })
       .select()
       .single();
@@ -47,6 +50,7 @@ export default function NewPickListScreen() {
       await logActivity(user?.id, 'pick_list_created', {
         pickListId: data.id,
         details: { name: data.name },
+        teamId,
       });
         notificationSuccess();
       router.replace(`/pick-list/${data.id}`);

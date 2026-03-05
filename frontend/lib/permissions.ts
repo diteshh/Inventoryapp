@@ -1,4 +1,4 @@
-import { useAuth } from '@/lib/auth-context';
+import { useTeam } from '@/lib/team-context';
 
 export type UserRole = 'owner' | 'admin' | 'member';
 
@@ -29,8 +29,7 @@ export function canPerform(role: UserRole | undefined, action: PermissionAction)
 }
 
 export function usePermission() {
-  const { profile } = useAuth();
-  const role = profile?.role as UserRole | undefined;
+  const { role } = useTeam();
 
   return {
     role,

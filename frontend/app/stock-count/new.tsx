@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Item } from '@/lib/types';
 import { logActivity } from '@/lib/utils';
@@ -31,6 +32,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NewStockCountScreen() {
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
@@ -103,6 +105,7 @@ export default function NewStockCountScreen() {
           notes: notes.trim() || null,
           created_by: user?.id,
           status: 'draft',
+          team_id: teamId ?? null,
         })
         .select()
         .single();
@@ -117,7 +120,7 @@ export default function NewStockCountScreen() {
       const { error: itemsError } = await supabase.from('stock_count_items').insert(itemRows);
       if (itemsError) throw itemsError;
 
-      await logActivity(user?.id, 'stock_count_created', { details: { name: name.trim(), itemCount: selectedItems.length } });
+      await logActivity(user?.id, 'stock_count_created', { details: { name: name.trim(), itemCount: selectedItems.length }, teamId });
 
       router.replace(`/stock-count/${sc.id}`);
     } catch (e: any) {

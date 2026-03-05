@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { X, Folder as FolderIcon, ImagePlus } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '@/lib/auth-context';
 import { useTheme, getElevatedShadow } from '@/lib/theme-context';
+import { useTeam } from '@/lib/team-context';
 import { supabase } from '@/lib/supabase';
 import { generateSku } from '@/lib/utils';
 
@@ -30,7 +32,9 @@ export function FolderCreationModal({
   onSuccess,
   parentFolderId = null,
 }: FolderCreationModalProps) {
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const { teamId } = useTeam();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -95,6 +99,8 @@ export function FolderCreationModal({
           sku,
           colour: colors.accent,
           cover_image: coverImageUrl,
+          team_id: teamId ?? null,
+          created_by: user?.id ?? null,
         })
         .select()
         .single();

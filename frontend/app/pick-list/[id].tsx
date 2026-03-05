@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Item, PickList, PickListComment, PickListItem } from '@/lib/types';
@@ -53,6 +54,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 export default function PickListDetailScreen() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [pickList, setPickList] = useState<PickList | null>(null);
   const [items, setItems] = useState<PickListItemWithItem[]>([]);
@@ -122,9 +124,10 @@ export default function PickListDetailScreen() {
       await logActivity(user?.id, 'pick_list_updated', {
         pickListId: pickList.id,
         details: { name: pickList.name, status: newStatus },
+        teamId,
       });
       if (newStatus === 'complete') {
-        await logActivity(user?.id, 'pick_list_completed', { pickListId: pickList.id, details: { name: pickList.name } });
+        await logActivity(user?.id, 'pick_list_completed', { pickListId: pickList.id, details: { name: pickList.name }, teamId });
       }
         notificationSuccess();
         load();
@@ -167,6 +170,7 @@ export default function PickListDetailScreen() {
       pick_list_id: id,
       user_id: user.id,
       content: commentText.trim(),
+      team_id: teamId ?? null,
     });
     setCommentText('');
     setSendingComment(false);

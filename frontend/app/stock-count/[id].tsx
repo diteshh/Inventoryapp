@@ -1,5 +1,6 @@
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Item, StockCount, StockCountItem } from '@/lib/types';
 import {
@@ -32,6 +33,7 @@ type CountItemWithItem = StockCountItem & { items: Item | null };
 export default function StockCountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
   const [stockCount, setStockCount] = useState<StockCount | null>(null);
   const [items, setItems] = useState<CountItemWithItem[]>([]);
@@ -130,6 +132,7 @@ export default function StockCountDetailScreen() {
                   performed_by: user?.id,
                   item_name: sci.items?.name,
                   notes: `Stock count: ${stockCount?.name}`,
+                  team_id: teamId ?? null,
                 });
               }
 
@@ -139,7 +142,7 @@ export default function StockCountDetailScreen() {
                 .update({ status: 'complete', completed_at: new Date().toISOString() })
                 .eq('id', id);
 
-              await logActivity(user?.id, 'stock_count_completed', { details: { name: stockCount?.name } });
+              await logActivity(user?.id, 'stock_count_completed', { details: { name: stockCount?.name }, teamId });
 
               setStockCount(prev => prev ? { ...prev, status: 'complete' } : prev);
               Alert.alert('Success', 'Stock count completed and inventory updated.');
