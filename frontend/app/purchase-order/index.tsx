@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { PurchaseOrder } from '@/lib/types';
 import { formatRelativeTime, getPOStatusColor, getPOStatusLabel } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Plus,
@@ -62,6 +62,12 @@ export default function PurchaseOrderListScreen() {
   }, [statusFilter, searchQuery]);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [loadOrders])
+  );
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>

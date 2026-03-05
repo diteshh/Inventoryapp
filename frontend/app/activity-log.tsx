@@ -3,7 +3,7 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { ActivityLog } from '@/lib/types';
 import { formatRelativeTime, getActionLabel } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Activity,
   ArrowLeft,
@@ -12,7 +12,7 @@ import {
   Package,
   RefreshCw,
 } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -97,6 +97,13 @@ export default function ActivityLogScreen() {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filter])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

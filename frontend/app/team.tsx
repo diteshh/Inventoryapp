@@ -3,7 +3,7 @@ import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Profile } from '@/lib/types';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Crown,
@@ -54,6 +54,12 @@ export default function TeamScreen() {
   }, []);
 
   useEffect(() => { loadMembers(); }, [loadMembers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMembers();
+    }, [loadMembers])
+  );
 
   const updateRole = (member: Profile) => {
     if (!can('manage_team')) {

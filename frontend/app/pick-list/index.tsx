@@ -3,7 +3,7 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { PickList } from '@/lib/types';
 import { formatRelativeTime, getPickListStatusColor, getPickListStatusLabel } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   ClipboardList,
@@ -57,6 +57,12 @@ export default function PickListListScreen() {
   }, [statusFilter, searchQuery]);
 
   useEffect(() => { loadPickLists(); }, [loadPickLists]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPickLists();
+    }, [loadPickLists])
+  );
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>

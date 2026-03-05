@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ClipboardList,
   ClipboardCheck,
@@ -54,6 +54,12 @@ export default function WorkflowsScreen() {
   }, []);
 
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
 
   const onRefresh = () => { setRefreshing(true); loadStats(); };
 

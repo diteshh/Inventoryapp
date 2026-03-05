@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Transaction, Folder } from '@/lib/types';
 import { formatDate, formatRelativeTime, getTransactionTypeLabel } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowDown,
   ArrowLeft,
@@ -77,6 +77,12 @@ export default function TransactionsScreen() {
     setPage(0);
     loadTransactions(true);
   }, [typeFilter]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions(true);
+    }, [loadTransactions])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

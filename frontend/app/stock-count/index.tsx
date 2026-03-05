@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { StockCount } from '@/lib/types';
 import { formatRelativeTime, getStockCountStatusColor, getStockCountStatusLabel } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -61,6 +61,12 @@ export default function StockCountListScreen() {
   }, [statusFilter, searchQuery]);
 
   useEffect(() => { loadCounts(); }, [loadCounts]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCounts();
+    }, [loadCounts])
+  );
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>

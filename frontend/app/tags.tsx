@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Tag } from '@/lib/types';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Check,
@@ -70,6 +70,12 @@ export default function TagsScreen() {
   }, [searchQuery]);
 
   useEffect(() => { loadTags(); }, [loadTags]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTags();
+    }, [loadTags])
+  );
 
   const openCreate = () => {
     setEditingTag(null);

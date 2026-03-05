@@ -3,7 +3,7 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { AlertTriangle, ArrowLeft, Package, RefreshCw } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -60,6 +60,12 @@ export default function LowStockScreen() {
     setLoading(true);
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>

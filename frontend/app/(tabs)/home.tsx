@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ActivityLog, Item, PickList } from '@/lib/types';
 import { formatRelativeTime, getActionLabel, getPickListStatusColor } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   AlertTriangle,
   ArrowRight,
@@ -72,6 +72,12 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

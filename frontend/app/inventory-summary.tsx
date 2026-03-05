@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Item, Folder } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   ChevronDown,
@@ -84,6 +84,12 @@ export default function InventorySummaryScreen() {
   }, [selectedFolder, sortBy]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const selectedFolderName = selectedFolder
     ? folders.find(f => f.id === selectedFolder)?.name ?? 'Unknown'

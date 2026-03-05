@@ -8,7 +8,7 @@ import {
   getPOStatusLabel,
   logActivity,
 } from '@/lib/utils';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Check,
@@ -65,6 +65,12 @@ export default function PurchaseOrderDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const receiveItem = async (poi: POItemWithItem, qty: number) => {
     const newReceived = Math.min(poi.quantity_received + qty, poi.quantity_ordered);

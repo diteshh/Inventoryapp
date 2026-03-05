@@ -4,7 +4,7 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { ActivityLog, Folder, Item, Tag } from '@/lib/types';
 import { formatCurrency, formatDate, formatRelativeTime, getActionLabel, getPhotoUrl, logActivity } from '@/lib/utils';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { usePermission } from '@/lib/permissions';
 import { impactLight, notificationSuccess } from '@/lib/haptics';
 import {
@@ -84,6 +84,12 @@ export default function ItemDetailScreen() {
   useEffect(() => {
     loadItem();
   }, [loadItem]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadItem();
+    }, [loadItem])
+  );
 
   const adjustQuantity = async () => {
     if (!item || qtyAdjust === 0) return;

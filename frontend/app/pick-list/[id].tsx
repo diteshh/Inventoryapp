@@ -11,7 +11,7 @@ import {
   logActivity,
 } from '@/lib/utils';
 import { impactLight, impactMedium, notificationSuccess } from '@/lib/haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   CheckCircle,
@@ -92,6 +92,12 @@ export default function PickListDetailScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   // Realtime subscription
   useEffect(() => {

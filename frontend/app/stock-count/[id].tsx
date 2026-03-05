@@ -7,7 +7,7 @@ import {
   getStockCountStatusLabel,
   logActivity,
 } from '@/lib/utils';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Check,
@@ -64,6 +64,12 @@ export default function StockCountDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const updateCount = async (sci: CountItemWithItem, newCount: number) => {
     const counted = Math.max(0, newCount);

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Notification } from '@/lib/types';
 import { formatRelativeTime } from '@/lib/utils';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -57,6 +57,12 @@ export default function NotificationsScreen() {
   }, [user]);
 
   useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [loadNotifications])
+  );
 
   const markAllRead = async () => {
     if (!user) return;
