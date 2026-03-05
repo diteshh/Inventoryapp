@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth-context';
+import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { Profile } from '@/lib/types';
@@ -24,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TeamScreen() {
   const { user } = useAuth();
+  const { can } = usePermission();
   const { colors, isDark } = useTheme();
   const [members, setMembers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,8 +56,21 @@ export default function TeamScreen() {
   useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const updateRole = (member: Profile) => {
+    if (!can('manage_team')) {
+      Alert.alert('Permission Denied', 'You do not have permission to manage team roles.');
+      return;
+    }
     if (member.id === user?.id) {
       Alert.alert('Cannot Change', 'You cannot change your own role.');
+      return;
+    }
+    if (member.role === 'owner') {
+      Alert.alert('Cannot Change', 'The owner role cannot be changed.');
+      return;
+    }
+    // Demoting an admin requires owner role
+    if (member.role === 'admin' && !can('demote_admin')) {
+      Alert.alert('Permission Denied', 'Only the owner can demote an admin.');
       return;
     }
     const newRole = member.role === 'admin' ? 'member' : 'admin';
@@ -130,7 +145,8 @@ export default function TeamScreen() {
             const badge = getRoleBadge(member.role, isOwner);
             return (
               <TouchableOpacity
-                onPress={() => updateRole(member)}
+                onPress={() => can('manage_team') ? updateRole(member) : undefined}
+                activeOpacity={can('manage_team') ? 0.2 : 1}
                 className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
                 style={cardStyle}>
                 <View

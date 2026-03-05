@@ -1,4 +1,5 @@
 import { useAuth } from '@/lib/auth-context';
+import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
@@ -47,6 +48,11 @@ type SettingsTab = 'profile' | 'security' | 'tags' | 'appearance';
 export default function SettingsScreen() {
   const { tab: defaultTab } = useLocalSearchParams<{ tab?: string }>();
   const { colors, isDark, mode, setMode } = useTheme();
+  const { can } = usePermission();
+  const canManageTags = can('manage_tags');
+  const availableTabs = canManageTags
+    ? (['profile', 'security', 'tags', 'appearance'] as const)
+    : (['profile', 'security', 'appearance'] as const);
   const [activeTab, setActiveTab] = useState<SettingsTab>(
     (defaultTab as SettingsTab) ?? 'profile'
   );
@@ -63,7 +69,7 @@ export default function SettingsScreen() {
 
       {/* Tab bar */}
       <View className="mx-5 mb-4 flex-row rounded-xl p-1" style={{ backgroundColor: colors.surface }}>
-        {(['profile', 'security', 'tags', 'appearance'] as const).map((tab) => (
+        {availableTabs.map((tab) => (
           <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
@@ -80,7 +86,7 @@ export default function SettingsScreen() {
 
       {activeTab === 'profile' && <ProfileTab colors={colors} isDark={isDark} />}
       {activeTab === 'security' && <SecurityTab colors={colors} isDark={isDark} />}
-      {activeTab === 'tags' && <TagsTab colors={colors} isDark={isDark} />}
+      {activeTab === 'tags' && canManageTags && <TagsTab colors={colors} isDark={isDark} />}
       {activeTab === 'appearance' && <AppearanceTab colors={colors} isDark={isDark} mode={mode} setMode={setMode} />}
     </SafeAreaView>
   );

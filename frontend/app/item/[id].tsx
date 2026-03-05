@@ -5,6 +5,7 @@ import type { ThemeColors } from '@/lib/theme-context';
 import type { ActivityLog, Folder, Item, Tag } from '@/lib/types';
 import { formatCurrency, formatDate, formatRelativeTime, getActionLabel, getPhotoUrl, logActivity } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
+import { usePermission } from '@/lib/permissions';
 import { impactLight, notificationSuccess } from '@/lib/haptics';
 import {
   ArrowLeft,
@@ -43,6 +44,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { can } = usePermission();
   const { colors, isDark } = useTheme();
   const [item, setItem] = useState<Item | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -154,9 +156,11 @@ export default function ItemDetailScreen() {
             <Edit2 color={colors.accent} size={16} />
             <Text className="text-sm font-medium" style={{ color: colors.accent }}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={deleteItem} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-            <Trash2 color={colors.destructive} size={18} />
-          </TouchableOpacity>
+          {can('delete_item') && (
+            <TouchableOpacity onPress={deleteItem} className="rounded-xl p-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+              <Trash2 color={colors.destructive} size={18} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

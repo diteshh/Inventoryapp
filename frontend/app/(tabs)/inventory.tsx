@@ -1,12 +1,16 @@
+import { useAuth } from '@/lib/auth-context';
+import { usePermission } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Folder, Item } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, logActivity } from '@/lib/utils';
+import { impactMedium } from '@/lib/haptics';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   ChevronRight,
+  Edit2,
   Filter,
   FolderOpen,
   Grid2X2,
@@ -17,9 +21,11 @@ import {
   MoreHorizontal,
   SlidersHorizontal,
   Check,
+  Trash2,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -46,8 +52,11 @@ type EnhancedFolder = Folder & {
 };
 
 export default function InventoryScreen() {
+  const { user } = useAuth();
+  const { can } = usePermission();
   const { colors, isDark } = useTheme();
   const params = useLocalSearchParams<{ filter?: string; folder_id?: string }>();
+  const [actionMenu, setActionMenu] = useState<{ type: 'folder' | 'item'; data: Folder | Item } | null>(null);
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<EnhancedFolder[]>([]);
@@ -183,6 +192,51 @@ export default function InventoryScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
+  };
+
+  const canDelete = can('delete_item');
+
+  const deleteFolder = (folder: Folder) => {
+    Alert.alert(
+      'Delete Folder',
+      `Delete "${folder.name}" and all items inside it? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('items').update({ status: 'deleted' }).eq('folder_id', folder.id);
+            const { data: subfolders } = await supabase.from('folders').select('id').eq('parent_folder_id', folder.id);
+            if (subfolders?.length) {
+              const subIds = subfolders.map((f: any) => f.id);
+              await supabase.from('items').update({ status: 'deleted' }).in('folder_id', subIds);
+              await supabase.from('folders').delete().in('id', subIds);
+            }
+            await supabase.from('folders').delete().eq('id', folder.id);
+            await logActivity(user?.id, 'item_deleted', { details: { folder_name: folder.name, type: 'folder' } });
+            impactMedium();
+            loadData();
+          },
+        },
+      ]
+    );
+  };
+
+  const deleteItem = (item: Item) => {
+    Alert.alert('Delete Item', `Delete "${item.name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('items').update({ status: 'deleted' }).eq('id', item.id);
+          await logActivity(user?.id, 'item_deleted', { itemId: item.id, details: { item_name: item.name } });
+          impactMedium();
+          loadData();
+        },
+      },
+    ]);
   };
 
   const totalFolders = folders.length;
@@ -330,6 +384,7 @@ export default function InventoryScreen() {
           }
           renderItem={({ item }) => {
             if ((item as any)._type === 'folder') {
+              const openFolderMenu = () => setActionMenu({ type: 'folder', data: item as unknown as Folder });
               if (viewMode === 'grid') {
                 return (
                   <GridFolderCard
@@ -344,15 +399,17 @@ export default function InventoryScreen() {
                 <FolderCard
                   folder={item as EnhancedFolder}
                   onPress={() => navigateToFolder(item as unknown as Folder)}
+                  onMore={openFolderMenu}
                   colors={colors}
                   isDark={isDark}
                 />
               );
             }
+            const openItemMenu = () => setActionMenu({ type: 'item', data: item as Item });
             if (viewMode === 'grid') {
               return <GridItem item={item as Item} onPress={() => router.push(`/item/${item.id}`)} colors={colors} isDark={isDark} />;
             }
-            return <ListItem item={item as Item} onPress={() => router.push(`/item/${item.id}`)} colors={colors} isDark={isDark} />;
+            return <ListItem item={item as Item} onPress={() => router.push(`/item/${item.id}`)} onMore={openItemMenu} colors={colors} isDark={isDark} />;
           }}
         />
       )}
@@ -416,11 +473,69 @@ export default function InventoryScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Action Menu Modal */}
+      <Modal visible={!!actionMenu} transparent animationType="fade" onRequestClose={() => setActionMenu(null)}>
+        <Pressable className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }} onPress={() => setActionMenu(null)}>
+          <Pressable
+            className="mx-4 mb-8 rounded-2xl overflow-hidden"
+            style={{ backgroundColor: colors.surface }}
+            onPress={(e) => e.stopPropagation()}>
+            <View className="px-5 py-4 border-b" style={{ borderBottomColor: colors.border }}>
+              <Text className="text-base font-bold" style={{ color: colors.textPrimary }} numberOfLines={1}>
+                {actionMenu?.type === 'folder' ? (actionMenu.data as Folder).name : (actionMenu?.data as Item)?.name}
+              </Text>
+              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                {actionMenu?.type === 'folder' ? 'Folder' : 'Item'}
+              </Text>
+            </View>
+
+            {actionMenu?.type === 'item' && (
+              <TouchableOpacity
+                onPress={() => {
+                  const id = actionMenu.data.id;
+                  setActionMenu(null);
+                  router.push(`/item/edit/${id}`);
+                }}
+                className="flex-row items-center gap-3 px-5 py-4 border-b"
+                style={{ borderBottomColor: colors.border }}>
+                <Edit2 color={colors.accent} size={18} />
+                <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>Edit</Text>
+              </TouchableOpacity>
+            )}
+
+            {canDelete && (
+              <TouchableOpacity
+                onPress={() => {
+                  const data = actionMenu!.data;
+                  const type = actionMenu!.type;
+                  setActionMenu(null);
+                  if (type === 'folder') {
+                    deleteFolder(data as Folder);
+                  } else {
+                    deleteItem(data as Item);
+                  }
+                }}
+                className="flex-row items-center gap-3 px-5 py-4">
+                <Trash2 color={colors.destructive} size={18} />
+                <Text className="text-sm font-medium" style={{ color: colors.destructive }}>Delete</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setActionMenu(null)}
+              className="items-center py-4 mt-1 border-t"
+              style={{ borderTopColor: colors.border }}>
+              <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function FolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolder; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
+function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: EnhancedFolder; onPress: () => void; onMore: () => void; colors: ThemeColors; isDark: boolean }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -460,14 +575,14 @@ function FolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolde
         </View>
       </View>
 
-      <TouchableOpacity className="p-2">
+      <TouchableOpacity className="p-2" onPress={(e) => { e.stopPropagation(); onMore(); }}>
         <MoreHorizontal color={colors.textSecondary} size={20} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 }
 
-function ListItem({ item, onPress, colors, isDark }: { item: Item; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
+function ListItem({ item, onPress, onMore, colors, isDark }: { item: Item; onPress: () => void; onMore: () => void; colors: ThemeColors; isDark: boolean }) {
   const photoUrl = item.photos?.[0];
   return (
     <TouchableOpacity
@@ -502,7 +617,7 @@ function ListItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
         </View>
       </View>
 
-      <TouchableOpacity className="p-2">
+      <TouchableOpacity className="p-2" onPress={(e) => { e.stopPropagation(); onMore(); }}>
         <MoreHorizontal color={colors.textSecondary} size={20} />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -514,10 +629,10 @@ function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedF
     <TouchableOpacity
       onPress={onPress}
       className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
-      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
       <View
         className="items-center justify-center"
-        style={{ height: 130, backgroundColor: colors.border }}>
+        style={{ height: 130, backgroundColor: colors.background }}>
         {folder.cover_image ? (
           <Image source={{ uri: folder.cover_image }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
         ) : (
@@ -543,10 +658,10 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
     <TouchableOpacity
       onPress={onPress}
       className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
-      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+      style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
       <View
         className="items-center justify-center"
-        style={{ height: 130, backgroundColor: colors.border }}>
+        style={{ height: 130, backgroundColor: colors.background }}>
         {photoUrl ? (
           <Image source={{ uri: photoUrl }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
         ) : (

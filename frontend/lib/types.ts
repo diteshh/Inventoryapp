@@ -298,7 +298,7 @@ export interface Database {
           id: string;
           full_name: string | null;
           avatar_url: string | null;
-          role: string;
+          role: 'owner' | 'admin' | 'member';
           pin_hash: string | null;
           department: string | null;
           permissions: Json | null;
@@ -309,7 +309,7 @@ export interface Database {
           id: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: string;
+          role?: 'owner' | 'admin' | 'member';
           pin_hash?: string | null;
           department?: string | null;
           permissions?: Json | null;
@@ -320,7 +320,7 @@ export interface Database {
           id?: string;
           full_name?: string | null;
           avatar_url?: string | null;
-          role?: string;
+          role?: 'owner' | 'admin' | 'member';
           pin_hash?: string | null;
           department?: string | null;
           permissions?: Json | null;
