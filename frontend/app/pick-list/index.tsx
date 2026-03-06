@@ -1,8 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
-import type { PickList } from '@/lib/types';
+import type { PickList, Profile } from '@/lib/types';
 import { formatRelativeTime, getPickListStatusColor, getPickListStatusLabel } from '@/lib/utils';
+import { User } from 'lucide-react-native';
+
+type PickListWithAssignee = PickList & { assignee?: Profile | null };
 import { router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
@@ -24,11 +27,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBadge } from '@/components/ui/Badge';
 
-const STATUS_FILTERS = ['all', 'draft', 'ready_to_pick', 'in_progress', 'partially_complete', 'complete'] as const;
+const STATUS_FILTERS = ['all', 'draft', 'ready_to_pick', 'partially_complete', 'complete'] as const;
 
 export default function PickListListScreen() {
   const { colors, isDark } = useTheme();
-  const [pickLists, setPickLists] = useState<PickList[]>([]);
+  const [pickLists, setPickLists] = useState<PickListWithAssignee[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,14 +47,26 @@ export default function PickListListScreen() {
   const loadPickLists = useCallback(async () => {
     let query = supabase
       .from('pick_lists')
-      .select('*')
+      .select('*, assignee:profiles!pick_lists_assigned_to_fkey(*)')
       .order('updated_at', { ascending: false });
 
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     if (searchQuery.trim()) query = query.ilike('name', `%${searchQuery}%`);
 
-    const { data } = await query;
-    setPickLists((data ?? []) as PickList[]);
+    const { data, error } = await query;
+    if (error) {
+      // Fallback without join if FK doesn't exist
+      const fallback = supabase
+        .from('pick_lists')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      if (statusFilter !== 'all') fallback.eq('status', statusFilter);
+      if (searchQuery.trim()) fallback.ilike('name', `%${searchQuery}%`);
+      const { data: fbData } = await fallback;
+      setPickLists((fbData ?? []) as PickListWithAssignee[]);
+    } else {
+      setPickLists((data ?? []) as unknown as PickListWithAssignee[]);
+    }
     setLoading(false);
     setRefreshing(false);
   }, [statusFilter, searchQuery]);
@@ -176,6 +191,14 @@ export default function PickListListScreen() {
                   </View>
                   <StatusBadge status={item.status} size="sm" />
                 </View>
+                {item.status !== 'draft' && (
+                  <View className="flex-row items-center gap-1.5 mb-2">
+                    <User color={colors.textSecondary} size={12} />
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                      {item.assignee?.full_name ? `Assigned to ${item.assignee.full_name}` : 'Assigned to Everyone'}
+                    </Text>
+                  </View>
+                )}
                 <View className="flex-row items-center justify-between">
                   <Text className="text-xs" style={{ color: colors.textSecondary }}>
                     Updated {formatRelativeTime(item.updated_at)}

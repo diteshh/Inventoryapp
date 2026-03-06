@@ -212,10 +212,17 @@ function ActivityLogRow({ log, colors, isDark }: { log: ActivityLog; colors: The
                 {itemName ?? pickListName}
               </Text>
             )}
-            {details?.quantity != null && (
-              <Text className="text-xs mt-0.5" style={{ color: colors.accent }}>
-                Qty: {details.old_quantity != null ? `${details.old_quantity} \u2192 ` : ''}{String(details.quantity)}
-              </Text>
+            {details?.old_qty != null && details?.new_qty != null && (
+              (() => {
+                const change = details.new_qty - details.old_qty;
+                const isPositive = change > 0;
+                const changeColor = isPositive ? colors.success : colors.destructive;
+                return (
+                  <Text className="text-xs font-semibold mt-0.5" style={{ color: changeColor }}>
+                    {isPositive ? '+' : ''}{change} (was {details.old_qty}, now {details.new_qty})
+                  </Text>
+                );
+              })()
             )}
           </>
         )}

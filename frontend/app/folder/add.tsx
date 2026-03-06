@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
-import { generateSku } from '@/lib/utils';
+import { generateSku, getPhotoUrl } from '@/lib/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -13,12 +13,13 @@ import {
   Save,
   X,
 } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -29,8 +30,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AddFolderScreen() {
-  const params = useLocalSearchParams<{ parent_folder_id?: string }>();
+  const params = useLocalSearchParams<{ parent_folder_id?: string; id?: string }>();
   const parentFolderId = Array.isArray(params.parent_folder_id) ? params.parent_folder_id[0] : params.parent_folder_id;
+  const editId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const isEdit = !!editId;
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { teamId } = useTeam();
@@ -39,6 +42,27 @@ export default function AddFolderScreen() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Load existing folder data in edit mode
+  useEffect(() => {
+    if (!isEdit || !editId) return;
+    setLoading(true);
+    supabase
+      .from('folders')
+      .select('*')
+      .eq('id', editId)
+      .single()
+      .then(({ data, error }) => {
+        if (data && !error) {
+          setName(data.name ?? '');
+          setDescription(data.description ?? '');
+          const img = data.cover_image ? (getPhotoUrl(data.cover_image) ?? data.cover_image) : null;
+          setCoverImage(img);
+        }
+        setLoading(false);
+      });
+  }, [editId, isEdit]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -87,7 +111,7 @@ export default function AddFolderScreen() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Required', 'Folder name is required.');
       return;
@@ -95,27 +119,39 @@ export default function AddFolderScreen() {
 
     setSaving(true);
     try {
-      const sku = await generateSku('folder');
-      const { error } = await supabase
-        .from('folders')
-        .insert({
-          name: name.trim(),
-          description: description.trim() || null,
-          parent_folder_id: parentFolderId ?? null,
-          sku,
-          colour: colors.accent,
-          cover_image: coverImage,
-          team_id: teamId ?? null,
-          created_by: user?.id ?? null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      if (isEdit && editId) {
+        const { error } = await supabase
+          .from('folders')
+          .update({
+            name: name.trim(),
+            description: description.trim() || null,
+            cover_image: coverImage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', editId);
+        if (error) throw error;
+      } else {
+        const sku = await generateSku('folder');
+        const { error } = await supabase
+          .from('folders')
+          .insert({
+            name: name.trim(),
+            description: description.trim() || null,
+            parent_folder_id: parentFolderId ?? null,
+            sku,
+            colour: colors.accent,
+            cover_image: coverImage,
+            team_id: teamId ?? null,
+            created_by: user?.id ?? null,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+      }
       router.back();
     } catch (e: any) {
-      console.error('Folder creation error:', e);
-      Alert.alert('Error', e.message || 'Failed to create folder');
+      console.error('Folder save error:', e);
+      Alert.alert('Error', e.message || `Failed to ${isEdit ? 'update' : 'create'} folder`);
     } finally {
       setSaving(false);
     }
@@ -131,9 +167,9 @@ export default function AddFolderScreen() {
           style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
           <ArrowLeft color={colors.textPrimary} size={20} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>New Folder</Text>
+        <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{isEdit ? 'Edit Folder' : 'New Folder'}</Text>
         <TouchableOpacity
-          onPress={handleCreate}
+          onPress={handleSave}
           disabled={saving}
           className="flex-row items-center gap-1.5 rounded-xl px-3 py-2.5"
           style={{ backgroundColor: colors.accent }}>
@@ -149,6 +185,9 @@ export default function AddFolderScreen() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        {loading ? (
+          <ActivityIndicator color={colors.accent} className="mt-12" />
+        ) : (
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
           {/* Cover Image */}
           <View className="px-5 mb-4">
@@ -171,24 +210,25 @@ export default function AddFolderScreen() {
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={takePhoto}
+                  activeOpacity={0.7}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
+                  style={{ width: 100, height: 100, backgroundColor: colors.accentMuted, borderWidth: 1.5, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
                   {uploadingPhoto ? (
                     <ActivityIndicator color={colors.accent} size="small" />
                   ) : (
                     <>
-                      <Camera color={colors.accent} size={22} />
-                      <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Camera</Text>
+                      <Camera color={colors.accent} size={24} />
+                      <Text className="mt-1.5 text-xs font-medium" style={{ color: colors.accent }}>Camera</Text>
                     </>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity
+                <Pressable
                   onPress={pickImage}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
-                  <ImageIcon color={colors.accent} size={22} />
-                  <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Library</Text>
-                </TouchableOpacity>
+                  style={{ width: 100, height: 100, backgroundColor: colors.accentMuted, borderWidth: 1.5, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
+                  <ImageIcon color={colors.accent} size={24} />
+                  <Text className="mt-1.5 text-xs font-medium" style={{ color: colors.accent }}>Library</Text>
+                </Pressable>
               </View>
             )}
           </View>
@@ -212,6 +252,7 @@ export default function AddFolderScreen() {
             />
           </FormSection>
         </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

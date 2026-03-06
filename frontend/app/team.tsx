@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -225,6 +226,7 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   const cardStyle = {
     backgroundColor: colors.surface,
@@ -258,7 +260,7 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
     }, [loadMembers])
   );
 
-  const updateRole = (member: TeamMemberWithProfile) => {
+  const toggleRoleDropdown = (member: TeamMemberWithProfile) => {
     if (!can('manage_team')) {
       Alert.alert('Permission Denied', 'You do not have permission to manage team roles.');
       return;
@@ -271,32 +273,24 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
       Alert.alert('Cannot Change', 'The owner role cannot be changed.');
       return;
     }
-    if (member.role === 'admin' && !can('demote_admin')) {
-      Alert.alert('Permission Denied', 'Only the owner can demote an admin.');
+    setExpandedMemberId(expandedMemberId === member.id ? null : member.id);
+  };
+
+  const applyRole = async (member: TeamMemberWithProfile, newRole: 'admin' | 'member') => {
+    if (newRole === member.role) {
+      setExpandedMemberId(null);
       return;
     }
-    const newRole = member.role === 'admin' ? 'member' : 'admin';
-    Alert.alert(
-      'Change Role',
-      `Set ${member.profiles?.full_name ?? 'this user'} as ${newRole}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('team_members')
-              .update({ role: newRole } as any)
-              .eq('id', member.id);
-            if (error) {
-              Alert.alert('Error', error.message);
-            } else {
-              loadMembers();
-            }
-          },
-        },
-      ]
-    );
+    const { error } = await supabase
+      .from('team_members')
+      .update({ role: newRole } as any)
+      .eq('id', member.id);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      setExpandedMemberId(null);
+      loadMembers();
+    }
   };
 
   const handleGenerateInvite = async () => {
@@ -389,41 +383,92 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
           renderItem={({ item: member }) => {
             const badge = getRoleBadge(member.role);
             const profile = member.profiles;
+            const isExpanded = expandedMemberId === member.id;
+            const canChangeRole = can('manage_team') && member.user_id !== user?.id && member.role !== 'owner';
+            const roleOptions = [
+              { label: 'Admin', value: 'admin' as const, icon: <Shield color={colors.statusReady} size={16} /> },
+              { label: 'Member', value: 'member' as const, icon: <User color={colors.textSecondary} size={16} /> },
+            ];
             return (
-              <TouchableOpacity
-                onPress={() => can('manage_team') ? updateRole(member) : undefined}
-                activeOpacity={can('manage_team') ? 0.2 : 1}
-                className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
-                style={cardStyle}>
-                <View
-                  className="items-center justify-center rounded-2xl mr-3"
-                  style={{ width: 48, height: 48, backgroundColor: colors.accentMuted }}>
-                  {member.role === 'owner' ? (
-                    <Crown color={colors.accent} size={22} />
-                  ) : member.role === 'admin' ? (
-                    <Shield color={colors.statusReady} size={22} />
-                  ) : (
-                    <User color={colors.textSecondary} size={22} />
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className="font-semibold text-sm" style={{ color: colors.textPrimary }}>
-                    {profile?.full_name ?? 'Unknown'}
-                  </Text>
-                  {profile?.department && (
-                    <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                      {profile.department}
+              <View className="mb-3">
+                <TouchableOpacity
+                  onPress={() => canChangeRole ? toggleRoleDropdown(member) : undefined}
+                  activeOpacity={canChangeRole ? 0.7 : 1}
+                  className="flex-row items-center px-4 py-3"
+                  style={{
+                    ...cardStyle,
+                    borderRadius: isExpanded ? 16 : 16,
+                    borderBottomLeftRadius: isExpanded ? 0 : 16,
+                    borderBottomRightRadius: isExpanded ? 0 : 16,
+                  }}>
+                  <View
+                    className="items-center justify-center rounded-2xl mr-3"
+                    style={{ width: 48, height: 48, backgroundColor: colors.accentMuted }}>
+                    {member.role === 'owner' ? (
+                      <Crown color={colors.accent} size={22} />
+                    ) : member.role === 'admin' ? (
+                      <Shield color={colors.statusReady} size={22} />
+                    ) : (
+                      <User color={colors.textSecondary} size={22} />
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-semibold text-sm" style={{ color: colors.textPrimary }}>
+                      {profile?.full_name ?? 'Unknown'}
                     </Text>
-                  )}
-                </View>
-                <View
-                  className="rounded-full px-2.5 py-1"
-                  style={{ backgroundColor: badge.bg }}>
-                  <Text className="text-xs font-semibold" style={{ color: badge.color }}>
-                    {badge.label}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                    {profile?.department && (
+                      <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                        {profile.department}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    className="rounded-full px-2.5 py-1"
+                    style={{ backgroundColor: badge.bg }}>
+                    <Text className="text-xs font-semibold" style={{ color: badge.color }}>
+                      {badge.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {isExpanded && (
+                  <View
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderBottomLeftRadius: 16,
+                      borderBottomRightRadius: 16,
+                      borderWidth: isDark ? 1 : 0,
+                      borderTopWidth: 0,
+                      borderColor: isDark ? colors.borderLight : 'transparent',
+                      overflow: 'hidden',
+                    }}>
+                    <View style={{ height: 1, backgroundColor: colors.borderLight, marginHorizontal: 16 }} />
+                    <Text className="text-[10px] font-bold uppercase px-4 pt-3 pb-2" style={{ color: colors.textSecondary, letterSpacing: 1 }}>
+                      Change Role
+                    </Text>
+                    {roleOptions.map((role) => {
+                      const isCurrent = member.role === role.value;
+                      return (
+                        <TouchableOpacity
+                          key={role.value}
+                          onPress={() => applyRole(member, role.value)}
+                          className="flex-row items-center gap-3 px-4 py-3"
+                          style={{ backgroundColor: isCurrent ? `${colors.accent}11` : 'transparent' }}>
+                          {role.icon}
+                          <Text className="flex-1 text-sm font-medium" style={{ color: colors.textPrimary }}>
+                            {role.label}
+                          </Text>
+                          {isCurrent && (
+                            <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.accentMuted }}>
+                              <Text className="text-[10px] font-bold" style={{ color: colors.accent }}>Current</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <View style={{ height: 8 }} />
+                  </View>
+                )}
+              </View>
             );
           }}
         />

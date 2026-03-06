@@ -26,6 +26,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -128,49 +129,47 @@ export default function AddEditItemScreen() {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled) {
-      uploadPhotos(result.assets.map((a) => a.uri));
+      uploadPhoto(result.assets[0].uri);
     }
   };
 
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled) {
-      uploadPhotos([result.assets[0].uri]);
+      uploadPhoto(result.assets[0].uri);
     }
   };
 
-  const uploadPhotos = async (uris: string[]) => {
+  const uploadPhoto = async (uri: string) => {
     setUploadingPhotos(true);
-    const uploaded: string[] = [];
-    for (const uri of uris) {
-      try {
-        const ext = uri.split('.').pop() ?? 'jpg';
-        const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const formData = new FormData();
-        formData.append('file', { uri, name: filename, type: `image/${ext}` } as any);
-        const { data, error } = await supabase.storage.from('item-photos').upload(filename, formData, {
-          contentType: `image/${ext}`,
-          upsert: false,
-        });
-        if (!error && data) {
-          const { data: urlData } = supabase.storage.from('item-photos').getPublicUrl(data.path);
-          uploaded.push(urlData.publicUrl);
-        } else {
-          // Fall back to local URI for preview
-          uploaded.push(uri);
-        }
-      } catch {
-        uploaded.push(uri);
+    try {
+      const ext = uri.split('.').pop() ?? 'jpg';
+      const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const formData = new FormData();
+      formData.append('file', { uri, name: filename, type: `image/${ext}` } as any);
+      const { data, error } = await supabase.storage.from('item-photos').upload(filename, formData, {
+        contentType: `image/${ext}`,
+        upsert: false,
+      });
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from('item-photos').getPublicUrl(data.path);
+        setPhotos([urlData.publicUrl]);
+      } else {
+        setPhotos([uri]);
       }
+    } catch {
+      setPhotos([uri]);
     }
-    setPhotos((prev) => [...prev, ...uploaded]);
     setUploadingPhotos(false);
   };
 
@@ -264,48 +263,48 @@ export default function AddEditItemScreen() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
-          {/* Photos */}
+          {/* Photo */}
           <View className="px-5 mb-4">
-            <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>Photos</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>Photo</Text>
+            {photos.length > 0 ? (
+              <View className="relative" style={{ width: 120, height: 120 }}>
+                <Image
+                  source={{ uri: photos[0] }}
+                  style={{ width: 120, height: 120, borderRadius: 16 }}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  onPress={() => { setPhotos([]); setUploadingPhotos(false); }}
+                  className="absolute -right-2 -top-2 rounded-full p-1.5"
+                  style={{ backgroundColor: colors.destructive }}>
+                  <X color="#fff" size={12} />
+                </TouchableOpacity>
+              </View>
+            ) : (
               <View className="flex-row gap-3">
-                {photos.map((photo, idx) => (
-                  <View key={idx} className="relative">
-                    <Image
-                      source={{ uri: photo }}
-                      style={{ width: 90, height: 90, borderRadius: 12 }}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute -right-1.5 -top-1.5 rounded-full p-1"
-                      style={{ backgroundColor: colors.destructive }}>
-                      <X color="#fff" size={12} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
                 <TouchableOpacity
                   onPress={takePhoto}
+                  activeOpacity={0.7}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
+                  style={{ width: 100, height: 100, backgroundColor: colors.accentMuted, borderWidth: 1.5, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
                   {uploadingPhotos ? (
                     <ActivityIndicator color={colors.accent} size="small" />
                   ) : (
                     <>
-                      <Camera color={colors.accent} size={22} />
-                      <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Camera</Text>
+                      <Camera color={colors.accent} size={24} />
+                      <Text className="mt-1.5 text-xs font-medium" style={{ color: colors.accent }}>Camera</Text>
                     </>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity
+                <Pressable
                   onPress={pickImage}
                   className="items-center justify-center rounded-xl"
-                  style={{ width: 90, height: 90, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}>
-                  <ImageIcon color={colors.accent} size={22} />
-                  <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>Library</Text>
-                </TouchableOpacity>
+                  style={{ width: 100, height: 100, backgroundColor: colors.accentMuted, borderWidth: 1.5, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
+                  <ImageIcon color={colors.accent} size={24} />
+                  <Text className="mt-1.5 text-xs font-medium" style={{ color: colors.accent }}>Library</Text>
+                </Pressable>
               </View>
-            </ScrollView>
+            )}
           </View>
 
           {/* Basic Info */}
@@ -497,7 +496,7 @@ export default function AddEditItemScreen() {
                   onPress={() => { f('folder_id', folder.id); setShowFolderModal(false); }}
                   className="mb-2 flex-row items-center gap-3 rounded-xl px-4 py-3"
                   style={{ backgroundColor: form.folder_id === folder.id ? colors.accentMuted : colors.background }}>
-                  <FolderOpen color={folder.colour ?? colors.accent} size={18} />
+                  <FolderOpen color={colors.accent} size={18} />
                   <Text className="text-sm" style={{ color: colors.textPrimary }}>{folder.name}</Text>
                   {form.folder_id === folder.id && <Text style={{ color: colors.accent }}>✓</Text>}
                 </TouchableOpacity>

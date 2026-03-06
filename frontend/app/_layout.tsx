@@ -9,6 +9,7 @@ import { Platform, Text, TextInput } from 'react-native';
 import { AuthProvider } from '@/lib/auth-context';
 import { TeamProvider } from '@/lib/team-context';
 import { ThemeProvider, useTheme } from '@/lib/theme-context';
+import DoneAccessory, { DONE_ACCESSORY_ID } from '@/components/DoneAccessory';
 import { ErrorBoundary } from './error-boundary';
 
 // Set Gill Sans as the default font globally
@@ -33,6 +34,9 @@ const origInputRender = (TextInput as any).render;
     props: {
       ...origin.props,
       style: [defaultTextStyle, origin.props.style],
+      ...(Platform.OS === 'ios' && !origin.props.inputAccessoryViewID
+        ? { inputAccessoryViewID: DONE_ACCESSORY_ID }
+        : {}),
     },
   };
 };
@@ -45,6 +49,7 @@ function AppInner() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.statusBarBg} />
       <Stack screenOptions={{ headerShown: false }} />
+      <DoneAccessory />
     </NavThemeProvider>
   );
 }

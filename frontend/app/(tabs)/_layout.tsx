@@ -80,7 +80,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="pick-lists"
         options={{
-          title: 'Workflows',
+          title: 'Functions',
           tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
         }}
       />

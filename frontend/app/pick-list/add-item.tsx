@@ -4,13 +4,17 @@ import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
 import type { Item } from '@/lib/types';
 import { impactLight, notificationSuccess } from '@/lib/haptics';
-import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Check, Package, Search, X } from 'lucide-react-native';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { ArrowLeft, Check, ChevronRight, FolderOpen, Package, Search, X } from 'lucide-react-native';
+import { getPhotoUrl } from '@/lib/utils';
+import { getLastFolderSelection } from '@/app/pick-list/folder-picker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  Pressable,
   Text,
   TextInput,
   TouchableOpacity,
@@ -34,6 +38,19 @@ export default function AddItemToPickListScreen() {
   const [selected, setSelected] = useState<Map<string, SelectedItem>>(new Map());
   const [saving, setSaving] = useState(false);
   const [existingItemIds, setExistingItemIds] = useState<Set<string>>(new Set());
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedFolderName, setSelectedFolderName] = useState<string>('All Folders');
+
+  // Pick up folder selection when returning from picker
+  useFocusEffect(
+    useCallback(() => {
+      const selection = getLastFolderSelection();
+      if (selection) {
+        setSelectedFolderId(selection.folderId);
+        setSelectedFolderName(selection.folderName);
+      }
+    }, [])
+  );
 
   // Load existing pick list items to avoid duplicates
   useEffect(() => {
@@ -47,7 +64,7 @@ export default function AddItemToPickListScreen() {
       });
   }, [pickListId]);
 
-  const searchItems = useCallback(async (q: string) => {
+  const searchItems = useCallback(async (q: string, folderId: string | null) => {
     setLoading(true);
     let query = supabase
       .from('items')
@@ -60,14 +77,18 @@ export default function AddItemToPickListScreen() {
       query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
     }
 
+    if (folderId) {
+      query = query.eq('folder_id', folderId);
+    }
+
     const { data } = await query;
     setItems((data ?? []) as Item[]);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    searchItems(searchQuery);
-  }, [searchItems, searchQuery]);
+    searchItems(searchQuery, selectedFolderId);
+  }, [searchItems, searchQuery, selectedFolderId]);
 
   const toggleItem = (item: Item) => {
     setSelected((prev) => {
@@ -87,8 +108,21 @@ export default function AddItemToPickListScreen() {
       const next = new Map(prev);
       const entry = next.get(itemId);
       if (!entry) return prev;
-      const newQty = Math.max(1, entry.quantity + delta);
+      const maxQty = entry.item.quantity;
+      const newQty = Math.max(1, Math.min(entry.quantity + delta, maxQty));
       next.set(itemId, { ...entry, quantity: newQty });
+      return next;
+    });
+  };
+
+  const setQty = (itemId: string, qty: number) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      const entry = next.get(itemId);
+      if (!entry) return prev;
+      const maxQty = entry.item.quantity;
+      const clamped = Math.max(1, Math.min(qty, maxQty));
+      next.set(itemId, { ...entry, quantity: clamped });
       return next;
     });
   };
@@ -178,6 +212,7 @@ export default function AddItemToPickListScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoFocus
+          returnKeyType="done"
         />
         {searchQuery ? (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -185,6 +220,30 @@ export default function AddItemToPickListScreen() {
           </TouchableOpacity>
         ) : null}
       </View>
+
+      {/* Folder selector */}
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: '/pick-list/folder-picker' as any,
+            params: { selectedFolderId: selectedFolderId ?? '' },
+          })
+        }
+        className="mx-5 mb-3 flex-row items-center rounded-xl px-3 py-3"
+        style={{
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: selectedFolderId ? `${colors.accent}55` : colors.border,
+        }}>
+        <FolderOpen color={selectedFolderId ? colors.accent : colors.textSecondary} size={16} />
+        <Text
+          className="flex-1 ml-2 text-sm font-semibold"
+          numberOfLines={1}
+          style={{ color: selectedFolderId ? colors.accent : colors.textPrimary }}>
+          {selectedFolderName}
+        </Text>
+        <ChevronRight color={colors.textSecondary} size={16} />
+      </Pressable>
 
       {/* Selected items summary */}
       {selectedArray.length > 0 && (
@@ -242,11 +301,13 @@ export default function AddItemToPickListScreen() {
                 isDark={isDark}
                 onToggle={toggleItem}
                 onUpdateQty={updateQty}
+                onSetQty={setQty}
               />
             );
           }}
         />
       )}
+
     </SafeAreaView>
   );
 }
@@ -260,6 +321,7 @@ function ItemRow({
   isDark,
   onToggle,
   onUpdateQty,
+  onSetQty,
 }: {
   item: Item;
   isSelected: boolean;
@@ -269,11 +331,18 @@ function ItemRow({
   isDark: boolean;
   onToggle: (item: Item) => void;
   onUpdateQty: (itemId: string, delta: number) => void;
+  onSetQty: (itemId: string, qty: number) => void;
 }) {
+  const [qtyText, setQtyText] = useState(String(selectedEntry?.quantity ?? 1));
+  const [isEditingQty, setIsEditingQty] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingQty && selectedEntry) setQtyText(String(selectedEntry.quantity));
+  }, [selectedEntry?.quantity, isEditingQty]);
+
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => !alreadyAdded && onToggle(item)}
-      activeOpacity={alreadyAdded ? 1 : 0.7}
       className="mb-2.5 rounded-2xl p-4"
       style={{
         backgroundColor: isSelected ? colors.accentMuted : colors.surface,
@@ -296,12 +365,21 @@ function ItemRow({
           {isSelected && <Check size={13} color={colors.accentOnAccent} />}
         </View>
 
-        {/* Icon */}
-        <View
-          className="items-center justify-center rounded-xl p-2"
-          style={{ backgroundColor: colors.accentMuted }}>
-          <Package color={colors.accent} size={16} />
-        </View>
+        {/* Photo / Icon */}
+        {item.photos && item.photos.length > 0 ? (
+          <Image
+            source={{ uri: getPhotoUrl(item.photos[0]) ?? undefined }}
+            className="rounded-xl"
+            style={{ width: 72, height: 72, backgroundColor: colors.accentMuted, borderRadius: 14 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            className="items-center justify-center rounded-xl"
+            style={{ width: 72, height: 72, backgroundColor: colors.accentMuted, borderRadius: 14 }}>
+            <Package color={colors.accent} size={18} />
+          </View>
+        )}
 
         {/* Info */}
         <View className="flex-1">
@@ -336,25 +414,65 @@ function ItemRow({
           </Text>
           {isSelected && selectedEntry && (
             <View className="flex-row items-center gap-1.5 mt-1">
-              <TouchableOpacity
+              <Pressable
                 onPress={() => onUpdateQty(item.id, -1)}
-                className="items-center justify-center rounded-md"
-                style={{ width: 24, height: 24, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
-                <Text className="font-bold text-sm" style={{ color: colors.textPrimary }}>{'\u2212'}</Text>
-              </TouchableOpacity>
-              <Text className="text-sm font-bold" style={{ minWidth: 20, textAlign: 'center', color: colors.textPrimary }}>
-                {selectedEntry.quantity}
-              </Text>
-              <TouchableOpacity
+                className="items-center justify-center rounded-lg"
+                style={{ width: 32, height: 32, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: selectedEntry.quantity <= 1 ? 0.4 : 1 }}>
+                <Text className="font-bold text-base" style={{ color: colors.textPrimary }}>{'\u2212'}</Text>
+              </Pressable>
+              <TextInput
+                style={{
+                  minWidth: 40,
+                  textAlign: 'center',
+                  color: colors.textPrimary,
+                  fontWeight: '700',
+                  fontSize: 14,
+                  backgroundColor: colors.background,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 8,
+                  paddingVertical: 4,
+                  paddingHorizontal: 6,
+                }}
+                keyboardType="number-pad"
+                value={qtyText}
+                onFocus={() => setIsEditingQty(true)}
+                onChangeText={(text) => setQtyText(text.replace(/[^0-9]/g, ''))}
+                onBlur={() => {
+                  setIsEditingQty(false);
+                  const num = parseInt(qtyText, 10);
+                  if (isNaN(num) || num < 1) {
+                    setQtyText('1');
+                    onSetQty(item.id, 1);
+                  } else {
+                    const clamped = Math.min(num, item.quantity);
+                    setQtyText(String(clamped));
+                    onSetQty(item.id, clamped);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  const num = parseInt(qtyText, 10);
+                  if (isNaN(num) || num < 1) {
+                    setQtyText('1');
+                    onSetQty(item.id, 1);
+                  } else {
+                    const clamped = Math.min(num, item.quantity);
+                    setQtyText(String(clamped));
+                    onSetQty(item.id, clamped);
+                  }
+                }}
+                selectTextOnFocus
+              />
+              <Pressable
                 onPress={() => onUpdateQty(item.id, 1)}
-                className="items-center justify-center rounded-md"
-                style={{ width: 24, height: 24, backgroundColor: colors.accent }}>
-                <Text style={{ color: colors.accentOnAccent }} className="font-bold text-sm">+</Text>
-              </TouchableOpacity>
+                className="items-center justify-center rounded-lg"
+                style={{ width: 32, height: 32, backgroundColor: colors.accent, opacity: selectedEntry.quantity >= item.quantity ? 0.4 : 1 }}>
+                <Text style={{ color: colors.accentOnAccent }} className="font-bold text-base">+</Text>
+              </Pressable>
             </View>
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }

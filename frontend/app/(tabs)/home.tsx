@@ -131,7 +131,7 @@ export default function HomeScreen() {
             <Text className="text-xs font-semibold" style={{ color: colors.textPrimary }}>Scan</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => router.push('/pick-list/new')}
+            onPress={() => router.push('/pick-list/')}
             className="flex-1 items-center justify-center rounded-2xl py-4 gap-2"
             style={{ ...cardStyle }}>
             <ClipboardList color={colors.accent} size={22} />
@@ -177,7 +177,7 @@ export default function HomeScreen() {
                   icon={<AlertTriangle color={colors.warning} size={20} />}
                   iconBg={colors.warningMuted}
                   highlight={stats?.lowStockCount ? true : false}
-                  onPress={() => router.push('/(tabs)/inventory?filter=low_stock')}
+                  onPress={() => router.push('/low-stock')}
                 />
                 <StatCard
                   colors={colors}

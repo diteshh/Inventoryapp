@@ -108,25 +108,32 @@ export default function InventoryScreen() {
         }
       }
 
-      const enhancedFolders = (foldersData ?? []).map((f: any) => ({
+      const enhancedFolders = ((foldersData ?? []).map((f: any) => ({
         ...f,
         subfolder_count: statsMap[f.id]?.subfolder_count ?? 0,
         unit_count: statsMap[f.id]?.unit_count ?? 0,
         total_value: statsMap[f.id]?.total_value ?? 0,
         thumbnails: thumbsMap[f.id] ?? [],
-      })) as EnhancedFolder[];
+      })) as EnhancedFolder[]).sort((a, b) => {
+        if (sortBy === 'quantity') return (b.unit_count || 0) - (a.unit_count || 0);
+        if (sortBy === 'value') return (b.total_value || 0) - (a.total_value || 0);
+        if (sortBy === 'date') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return a.name.localeCompare(b.name);
+      });
 
       // Load items in this folder
       let query = supabase
         .from('items')
         .select('*')
         .eq('status', 'active')
-        .order(sortBy === 'date' ? 'created_at' : sortBy === 'quantity' ? 'quantity' : sortBy === 'value' ? 'sell_price' : 'name');
+        .order(sortBy === 'date' ? 'created_at' : sortBy === 'quantity' ? 'quantity' : sortBy === 'value' ? 'sell_price' : 'name', { ascending: sortBy === 'name' });
 
-      if (folderId) {
-        query = query.eq('folder_id', folderId);
-      } else {
-        query = query.is('folder_id', null);
+      if (!filterLowStock) {
+        if (folderId) {
+          query = query.eq('folder_id', folderId);
+        } else {
+          query = query.is('folder_id', null);
+        }
       }
 
 
@@ -148,10 +155,10 @@ export default function InventoryScreen() {
         setGlobalStats(null);
       }
 
-      setFolders(enhancedFolders);
+      setFolders(filterLowStock ? [] : enhancedFolders);
       let filteredItems = (itemsData ?? []) as Item[];
       if (filterLowStock) {
-        filteredItems = filteredItems.filter((i) => i.quantity <= i.min_quantity);
+        filteredItems = filteredItems.filter((i) => i.quantity < (i.min_quantity || 3));
       }
       setItems(filteredItems);
     } catch (e) {
@@ -288,7 +295,7 @@ export default function InventoryScreen() {
         </View>
 
         {/* Stats Bar */}
-        <View className="mb-2 flex-row justify-between rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+        <View className="mb-0 flex-row justify-between rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
           <View className="items-center">
             <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '700' }}>FOLDERS</Text>
             <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>{totalFolders}</Text>
@@ -307,58 +314,51 @@ export default function InventoryScreen() {
           </View>
         </View>
 
+        <View className="mt-3 mb-1" style={{ height: 1, backgroundColor: isDark ? `${colors.borderLight}88` : colors.borderLight }} />
 
         {/* Folder Navigation Bar */}
         {currentFolder && (
-          <TouchableOpacity
-            onPress={() => {
-              if (breadcrumbs.length > 0) {
-                // Go back to parent folder
-                const parent = breadcrumbs[breadcrumbs.length - 1];
-                setBreadcrumbs(breadcrumbs.slice(0, -1));
-                setCurrentFolder(parent);
-              } else {
-                // Go back to root
-                setCurrentFolder(null);
-                setBreadcrumbs([]);
-              }
-              setLoading(true);
-            }}
-            className="mt-3 flex-row items-center rounded-xl px-3 py-3"
-            style={{ backgroundColor: colors.accentMuted }}>
-            <ArrowLeft color={colors.accent} size={18} />
-            <Text className="ml-2 text-sm font-semibold" style={{ color: colors.accent }}>
-              {breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].name : 'All Items'}
-            </Text>
-            <ChevronRight color={colors.textSecondary} size={14} style={{ marginHorizontal: 4 }} />
-            <Text className="text-sm font-bold flex-1" numberOfLines={1} style={{ color: colors.textPrimary }}>
-              {currentFolder.name}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Breadcrumbs (for deep navigation) */}
-        {breadcrumbs.length > 1 && (
-          <View className="mt-2 flex-row items-center flex-wrap gap-1">
-            <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
-              <Home color={colors.textSecondary} size={14} />
+          <View className="mt-2 mb-2 flex-row items-center gap-3">
+            <TouchableOpacity
+              onPress={() => {
+                if (breadcrumbs.length > 0) {
+                  const parent = breadcrumbs[breadcrumbs.length - 1];
+                  setBreadcrumbs(breadcrumbs.slice(0, -1));
+                  setCurrentFolder(parent);
+                } else {
+                  setCurrentFolder(null);
+                  setBreadcrumbs([]);
+                }
+                setLoading(true);
+              }}
+              className="items-center justify-center rounded-xl"
+              style={{ width: 40, height: 40, backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+              <ArrowLeft color={colors.textPrimary} size={20} />
             </TouchableOpacity>
-            {breadcrumbs.map((bc, idx) => (
-              <React.Fragment key={bc.id}>
-                <ChevronRight color={colors.textSecondary} size={12} />
-                <TouchableOpacity onPress={() => navigateToBreadcrumb(idx)}>
-                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                    {bc.name}
-                  </Text>
-                </TouchableOpacity>
-              </React.Fragment>
-            ))}
-            {currentFolder && (
-              <>
-                <ChevronRight color={colors.textSecondary} size={12} />
-                <Text className="text-xs font-medium" style={{ color: colors.textPrimary }}>{currentFolder.name}</Text>
-              </>
-            )}
+
+            <View className="flex-1 rounded-xl px-3 py-2" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+              {breadcrumbs.length > 0 && (
+                <View className="flex-row items-center mb-0.5">
+                  <TouchableOpacity onPress={() => navigateToBreadcrumb(-1)}>
+                    <Text className="text-xs" style={{ color: colors.accent }}>All Items</Text>
+                  </TouchableOpacity>
+                  {breadcrumbs.map((bc, idx) => (
+                    <React.Fragment key={bc.id}>
+                      <ChevronRight color={colors.textSecondary} size={10} style={{ marginHorizontal: 2 }} />
+                      <TouchableOpacity onPress={() => navigateToBreadcrumb(idx)}>
+                        <Text className="text-xs" style={{ color: idx === breadcrumbs.length - 1 ? colors.textSecondary : colors.accent }}>{bc.name}</Text>
+                      </TouchableOpacity>
+                    </React.Fragment>
+                  ))}
+                </View>
+              )}
+              <View className="flex-row items-center">
+                <FolderOpen color={colors.accent} size={16} style={{ marginRight: 6 }} />
+                <Text className="text-sm font-bold flex-1" numberOfLines={1} style={{ color: colors.textPrimary }}>
+                  {currentFolder.name}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -370,10 +370,22 @@ export default function InventoryScreen() {
       ) : (
         <FlatList
           key={viewMode}
-          data={[...folders.map((f) => ({ ...f, _type: 'folder' as const })), ...items.map((i) => ({ ...i, _type: 'item' as const }))]}
+          data={(() => {
+            const combined = [...folders.map((f) => ({ ...f, _type: 'folder' as const })), ...items.map((i) => ({ ...i, _type: 'item' as const }))];
+            if (sortBy === 'name') return combined; // folders first, then items (both already sorted A-Z)
+            return combined.sort((a, b) => {
+              const getUnits = (x: any) => x._type === 'folder' ? (x.unit_count || 0) : (x.quantity || 0);
+              const getValue = (x: any) => x._type === 'folder' ? (x.total_value || 0) : ((x.quantity || 0) * (x.sell_price ?? x.cost_price ?? 0));
+              const getDate = (x: any) => new Date(x.created_at).getTime();
+              if (sortBy === 'quantity') return getUnits(b) - getUnits(a);
+              if (sortBy === 'value') return getValue(b) - getValue(a);
+              if (sortBy === 'date') return getDate(b) - getDate(a);
+              return 0;
+            });
+          })()}
           keyExtractor={(item) => item.id}
           numColumns={viewMode === 'grid' ? 2 : 1}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
           ListEmptyComponent={
             <EmptyState
@@ -492,19 +504,22 @@ export default function InventoryScreen() {
               </Text>
             </View>
 
-            {actionMenu?.type === 'item' && (
-              <TouchableOpacity
-                onPress={() => {
-                  const id = actionMenu.data.id;
-                  setActionMenu(null);
+            <TouchableOpacity
+              onPress={() => {
+                const id = actionMenu!.data.id;
+                const type = actionMenu!.type;
+                setActionMenu(null);
+                if (type === 'folder') {
+                  router.push(`/folder/edit/${id}`);
+                } else {
                   router.push(`/item/edit/${id}`);
-                }}
-                className="flex-row items-center gap-3 px-5 py-4 border-b"
-                style={{ borderBottomColor: colors.border }}>
-                <Edit2 color={colors.accent} size={18} />
-                <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>Edit</Text>
-              </TouchableOpacity>
-            )}
+                }
+              }}
+              className="flex-row items-center gap-3 px-5 py-4 border-b"
+              style={{ borderBottomColor: colors.border }}>
+              <Edit2 color={colors.accent} size={18} />
+              <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>Edit</Text>
+            </TouchableOpacity>
 
             {canDelete && (
               <TouchableOpacity
@@ -541,15 +556,15 @@ function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: Enhan
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
+      className="mb-3 flex-row items-center rounded-2xl px-4 py-3 overflow-hidden"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
       {/* Thumbnail / Cover Image */}
       {folder.cover_image ? (
-        <View className="mr-4 h-[60px] w-[60px] rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
+        <View className="mr-4 h-[60px] w-[60px] rounded-xl overflow-hidden" style={{ backgroundColor: colors.accentMuted }}>
           <Image source={{ uri: folder.cover_image }} className="h-full w-full" resizeMode="cover" />
         </View>
       ) : folder.thumbnails?.length ? (
-        <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
+        <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.accentMuted }}>
           {[0, 1, 2, 3].map((i) => (
             <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
               {folder.thumbnails?.[i] ? (
@@ -561,18 +576,20 @@ function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: Enhan
           ))}
         </View>
       ) : (
-        <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.accentMuted }}>
           <FolderOpen color={colors.accent} size={28} />
         </View>
       )}
 
       <View className="flex-1">
-        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{folder.id.slice(0, 8).toUpperCase()}</Text>
+        <View className="flex-row items-center mb-1">
+          <FolderOpen color={colors.accent} size={10} style={{ marginRight: 4 }} />
+          <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>FOLDER</Text>
+        </View>
         <Text className="font-bold text-base leading-tight" numberOfLines={1} style={{ color: colors.textPrimary }}>{folder.name}</Text>
         <View className="mt-1 flex-row items-center">
-          <Package color={colors.textSecondary} size={12} style={{ marginRight: 4 }} />
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-            {folder.subfolder_count || 0} folders | {folder.unit_count || 0} units | {formatCurrency(folder.total_value)}
+            {folder.subfolder_count || 0} folders  ·  {folder.unit_count || 0} units  ·  {formatCurrency(folder.total_value)}
           </Text>
         </View>
       </View>
@@ -585,36 +602,39 @@ function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: Enhan
 }
 
 function ListItem({ item, onPress, onMore, colors, isDark }: { item: Item; onPress: () => void; onMore: () => void; colors: ThemeColors; isDark: boolean }) {
-  const photoUrl = item.photos?.[0];
+  const isLowStock = item.quantity <= item.min_quantity;
   return (
     <TouchableOpacity
       onPress={onPress}
       className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-      {item.photos?.length ? (
-        <View className="mr-4 h-[60px] w-[60px] flex-row flex-wrap rounded-xl overflow-hidden" style={{ backgroundColor: colors.background }}>
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} className="h-[30px] w-[30px] items-center justify-center border-[0.5px]" style={{ borderColor: colors.border }}>
-              {item.photos?.[i] ? (
-                <Image source={{ uri: item.photos[i] }} className="h-full w-full" resizeMode="cover" />
-              ) : (
-                <View />
-              )}
-            </View>
-          ))}
-        </View>
+      {item.photos?.[0] ? (
+        <Image
+          source={{ uri: item.photos[0] }}
+          className="mr-4 rounded-xl"
+          style={{ width: 60, height: 60, backgroundColor: colors.background }}
+          resizeMode="cover"
+        />
       ) : (
         <View className="mr-4 h-[60px] w-[60px] rounded-xl items-center justify-center" style={{ backgroundColor: colors.background }}>
-          <Package color={colors.accent} size={28} />
+          <Package color={colors.textSecondary} size={28} />
         </View>
       )}
 
       <View className="flex-1">
-        <Text style={{ color: colors.textSecondary, fontSize: 10, marginBottom: 2 }}>{item.id.slice(0, 8).toUpperCase()}</Text>
+        <View className="flex-row items-center mb-1">
+          <Package color={colors.textSecondary} size={10} style={{ marginRight: 4 }} />
+          <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>ITEM</Text>
+          {isLowStock && (
+            <View className="ml-2 rounded-full px-1.5 py-0.5" style={{ backgroundColor: colors.warningMuted }}>
+              <Text style={{ color: colors.warning, fontSize: 9, fontWeight: '700' }}>LOW STOCK</Text>
+            </View>
+          )}
+        </View>
         <Text className="font-bold text-base leading-tight" numberOfLines={1} style={{ color: colors.textPrimary }}>{item.name}</Text>
         <View className="mt-1 flex-row items-center">
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-            {item.quantity} units | {formatCurrency(item.sell_price)}
+            {item.quantity} units  ·  {formatCurrency(item.sell_price)}
           </Text>
         </View>
       </View>
@@ -634,20 +654,21 @@ function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedF
       style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
       <View
         className="items-center justify-center"
-        style={{ height: 130, backgroundColor: colors.background }}>
+        style={{ height: 125, backgroundColor: colors.accentMuted }}>
         {folder.cover_image ? (
-          <Image source={{ uri: folder.cover_image }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
+          <Image source={{ uri: folder.cover_image }} style={{ width: '100%', height: 125 }} resizeMode="cover" />
         ) : (
           <FolderOpen color={colors.accent} size={36} />
         )}
       </View>
       <View className="p-3" style={{ flex: 1 }}>
+        <View className="flex-row items-center mb-1">
+          <FolderOpen color={colors.accent} size={9} style={{ marginRight: 3 }} />
+          <Text style={{ color: colors.accent, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>FOLDER</Text>
+        </View>
         <Text className="font-semibold text-sm" numberOfLines={1} style={{ color: colors.textPrimary }}>{folder.name}</Text>
-        <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
-          {folder.subfolder_count || 0} folders | {folder.unit_count || 0} units
-        </Text>
-        <Text className="mt-0.5 text-xs font-medium" style={{ color: colors.accent }}>
-          {formatCurrency(folder.total_value)}
+        <Text className="mt-0.5 text-xs" style={{ color: colors.textSecondary }}>
+          {folder.unit_count || 0} units  ·  {formatCurrency(folder.total_value)}
         </Text>
       </View>
     </TouchableOpacity>
@@ -656,6 +677,7 @@ function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedF
 
 function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
   const photoUrl = item.photos?.[0];
+  const isLowStock = item.quantity <= item.min_quantity;
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -663,26 +685,34 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
       style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
       <View
         className="items-center justify-center"
-        style={{ height: 130, backgroundColor: colors.background }}>
+        style={{ height: 125, backgroundColor: colors.background }}>
         {photoUrl ? (
-          <Image source={{ uri: photoUrl }} style={{ width: '100%', height: 130 }} resizeMode="cover" />
+          <Image source={{ uri: photoUrl }} style={{ width: '100%', height: 125 }} resizeMode="cover" />
         ) : (
-          <Package color={colors.accent} size={36} />
+          <Package color={colors.textSecondary} size={36} />
         )}
       </View>
       <View className="p-3" style={{ flex: 1 }}>
+        <View className="flex-row items-center mb-1">
+          <Package color={colors.textSecondary} size={9} style={{ marginRight: 3 }} />
+          <Text style={{ color: colors.textSecondary, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>ITEM</Text>
+          {isLowStock && (
+            <View className="ml-1.5 rounded-full px-1 py-0.5" style={{ backgroundColor: colors.warningMuted }}>
+              <Text style={{ color: colors.warning, fontSize: 8, fontWeight: '700' }}>LOW</Text>
+            </View>
+          )}
+        </View>
         <Text className="font-semibold text-sm" numberOfLines={1} style={{ color: colors.textPrimary }}>{item.name}</Text>
-        <View className="mt-1.5 flex-row items-center justify-between">
-          <Text className="text-xs font-medium" style={{ color: colors.accent }}>
+        <View className="mt-0.5 flex-row items-center justify-between">
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
             {item.quantity} units
           </Text>
           {item.sell_price != null && (
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+            <Text className="text-xs font-medium" style={{ color: colors.textPrimary }}>
               {formatCurrency(item.sell_price)}
             </Text>
           )}
         </View>
-        <LowStockBadge quantity={item.quantity} minQuantity={item.min_quantity} />
       </View>
     </TouchableOpacity>
   );

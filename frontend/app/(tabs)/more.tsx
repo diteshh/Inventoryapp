@@ -104,6 +104,7 @@ export default function MenuScreen() {
               onPress={toggleTheme}
               colors={colors}
               showChevron={false}
+              pressOpacity={1}
             />
           </View>
         </View>
@@ -225,6 +226,7 @@ function MenuRow({
   labelColor,
   onPress,
   showChevron = true,
+  pressOpacity,
   colors,
 }: {
   icon: React.ReactNode;
@@ -234,12 +236,13 @@ function MenuRow({
   labelColor?: string;
   onPress: () => void;
   showChevron?: boolean;
+  pressOpacity?: number;
   colors: any;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={pressOpacity ?? 0.7}
       className="flex-row items-center gap-3 px-4 py-3.5">
       <View
         className="items-center justify-center rounded-xl"

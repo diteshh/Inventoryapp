@@ -108,7 +108,7 @@ export default function WorkflowsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
         <View className="px-5 pt-4 pb-3">
           <Text className="text-xl font-bold" style={{ fontWeight: '800', color: colors.textPrimary }}>
-            Workflows
+            Functions
           </Text>
           <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
             Manage your inventory operations
