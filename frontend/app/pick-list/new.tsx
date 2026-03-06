@@ -46,16 +46,17 @@ export default function NewPickListScreen() {
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error('pick list create error:', error);
+      Alert.alert('Error', error.message ?? 'Failed to create pick list.');
+    } else if (data) {
       await logActivity(user?.id, 'pick_list_created', {
         pickListId: data.id,
         details: { name: data.name },
         teamId,
       });
-        notificationSuccess();
+      notificationSuccess();
       router.replace(`/pick-list/${data.id}`);
-    } else {
-      Alert.alert('Error', 'Failed to create pick list.');
     }
     setSaving(false);
   };

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -116,27 +117,27 @@ export default function HomeScreen() {
 
         {/* Quick Actions */}
         <View className="mx-5 mb-5 mt-4 flex-row gap-3">
-          <TouchableOpacity
+          <Pressable
             onPress={() => router.push('/item/add')}
             className="flex-1 items-center justify-center rounded-2xl py-4 gap-2"
             style={{ backgroundColor: colors.accent }}>
             <Plus color={colors.accentOnAccent} size={22} />
             <Text className="text-xs font-semibold" style={{ color: colors.accentOnAccent }}>Add Item</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/(tabs)/scanner')}
             className="flex-1 items-center justify-center rounded-2xl py-4 gap-2"
             style={{ ...cardStyle }}>
             <QrCode color={colors.accent} size={22} />
             <Text className="text-xs font-semibold" style={{ color: colors.textPrimary }}>Scan</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             onPress={() => router.push('/pick-list/')}
             className="flex-1 items-center justify-center rounded-2xl py-4 gap-2"
             style={{ ...cardStyle }}>
             <ClipboardList color={colors.accent} size={22} />
             <Text className="text-xs font-semibold" style={{ color: colors.textPrimary }}>Pick List</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Stats Grid */}
@@ -205,7 +206,7 @@ export default function HomeScreen() {
             {activePickLists.map((pl) => {
               const statusColor = getPickListStatusColor(pl.status, colors);
               return (
-                <TouchableOpacity
+                <Pressable
                   key={pl.id}
                   onPress={() => router.push(`/pick-list/${pl.id}`)}
                   className="mb-3 flex-row items-center justify-between rounded-2xl p-4"
@@ -235,7 +236,7 @@ export default function HomeScreen() {
                       {pl.status.replace(/_/g, ' ')}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </View>
@@ -295,9 +296,8 @@ function StatCard({
   isDark: boolean;
 }) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
       className="flex-1 rounded-2xl p-4"
       style={{
         backgroundColor: colors.surface,
@@ -314,7 +314,7 @@ function StatCard({
       <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

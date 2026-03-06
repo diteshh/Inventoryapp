@@ -17,6 +17,7 @@ import {
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   Text,
   TextInput,
@@ -169,7 +170,7 @@ export default function PickListListScreen() {
           renderItem={({ item }) => {
             const statusColor = getPickListStatusColor(item.status, colors);
             return (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => router.push(`/pick-list/${item.id}`)}
                 className="mb-3 rounded-2xl p-4"
                 style={cardStyle}>
@@ -212,7 +213,7 @@ export default function PickListListScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             );
           }}
         />

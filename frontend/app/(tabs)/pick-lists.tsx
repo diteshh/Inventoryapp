@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -120,10 +121,9 @@ export default function WorkflowsScreen() {
         ) : (
           <View className="px-5 gap-3 pb-8">
             {workflows.map((wf) => (
-              <TouchableOpacity
+              <Pressable
                 key={wf.title}
                 onPress={wf.comingSoon ? undefined : wf.onPress}
-                activeOpacity={wf.comingSoon ? 1 : 0.2}
                 disabled={wf.comingSoon}
                 className="rounded-2xl p-4"
                 style={[cardStyle, wf.comingSoon && { opacity: 0.55 }]}>
@@ -161,7 +161,7 @@ export default function WorkflowsScreen() {
                   </View>
                   {!wf.comingSoon && <ChevronRight color={colors.textSecondary} size={18} />}
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         )}

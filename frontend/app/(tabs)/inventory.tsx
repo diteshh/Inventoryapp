@@ -554,7 +554,7 @@ export default function InventoryScreen() {
 
 function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: EnhancedFolder; onPress: () => void; onMore: () => void; colors: ThemeColors; isDark: boolean }) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       className="mb-3 flex-row items-center rounded-2xl px-4 py-3 overflow-hidden"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
@@ -597,14 +597,14 @@ function FolderCard({ folder, onPress, onMore, colors, isDark }: { folder: Enhan
       <TouchableOpacity className="p-2" onPress={(e) => { e.stopPropagation(); onMore(); }}>
         <MoreHorizontal color={colors.textSecondary} size={20} />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 function ListItem({ item, onPress, onMore, colors, isDark }: { item: Item; onPress: () => void; onMore: () => void; colors: ThemeColors; isDark: boolean }) {
   const isLowStock = item.quantity <= item.min_quantity;
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       className="mb-3 flex-row items-center rounded-2xl px-4 py-3"
       style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
@@ -642,13 +642,13 @@ function ListItem({ item, onPress, onMore, colors, isDark }: { item: Item; onPre
       <TouchableOpacity className="p-2" onPress={(e) => { e.stopPropagation(); onMore(); }}>
         <MoreHorizontal color={colors.textSecondary} size={20} />
       </TouchableOpacity>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedFolder; onPress: () => void; colors: ThemeColors; isDark: boolean }) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
       style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
@@ -671,7 +671,7 @@ function GridFolderCard({ folder, onPress, colors, isDark }: { folder: EnhancedF
           {folder.unit_count || 0} units  ·  {formatCurrency(folder.total_value)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -679,7 +679,7 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
   const photoUrl = item.photos?.[0];
   const isLowStock = item.quantity <= item.min_quantity;
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       className="mx-1.5 mb-3 rounded-2xl overflow-hidden"
       style={{ flex: 1, maxWidth: '48%', height: 220, backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.borderLight : colors.border, ...getCardShadow(isDark) }}>
@@ -714,6 +714,6 @@ function GridItem({ item, onPress, colors, isDark }: { item: Item; onPress: () =
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
