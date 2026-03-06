@@ -48,8 +48,8 @@ export interface ThemeColors {
 
 export const DARK_COLORS: ThemeColors = {
   background: '#060709',
-  surface: '#1C1D1F',
-  surfaceElevated: '#1A1B1D',
+  surface: '#1A1D24',
+  surfaceElevated: '#181B22',
   border: '#2E3340',
   borderLight: '#2A2B2E',
   textPrimary: '#E6EDF3',
