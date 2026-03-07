@@ -9,6 +9,7 @@ import {
   ChevronRight,
   LogOut,
   Moon,
+  ScanLine,
   Settings,
   Sun,
   Tag,
@@ -121,6 +122,15 @@ export default function MenuScreen() {
               label="Reports"
               subtitle="Inventory summary, activity, transactions"
               onPress={() => router.push('/reports')}
+              colors={colors}
+            />
+            <Divider colors={colors} />
+            <MenuRow
+              icon={<ScanLine color={colors.statusReady} size={18} />}
+              iconBg={`${colors.statusReady}22`}
+              label="Picking Mode"
+              subtitle="Configure barcode scanning behavior"
+              onPress={() => router.push('/picking-mode')}
               colors={colors}
             />
             <Divider colors={colors} />

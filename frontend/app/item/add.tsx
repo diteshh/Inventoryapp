@@ -11,6 +11,8 @@ import { notificationSuccess } from '@/lib/haptics';
 import {
   ArrowLeft,
   Camera,
+  FlashlightOff,
+  Flashlight,
   FolderOpen,
   Image as ImageIcon,
   Plus,
@@ -35,6 +37,19 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+
+// Only import CameraView on native
+let CameraView: any = null;
+let useCameraPermissions: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    const CameraModule = require('expo-camera');
+    CameraView = CameraModule.CameraView;
+    useCameraPermissions = CameraModule.useCameraPermissions;
+  } catch {
+    // Camera not available
+  }
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ItemForm {
@@ -88,13 +103,17 @@ export default function AddEditItemScreen() {
   const [showTagModal, setShowTagModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerFlash, setScannerFlash] = useState(false);
+  const [scannerScanned, setScannerScanned] = useState(false);
+  const [camPermission, requestCamPermission] = useCameraPermissions?.() ?? [null, () => {}];
 
   useEffect(() => {
     supabase.from('tags').select('*').order('name').then(({ data }) => setAllTags((data ?? []) as Tag[]));
     supabase.from('folders').select('*').order('name').then(({ data }) => setAllFolders((data ?? []) as Folder[]));
 
     if (!isEdit && !form.sku) {
-      generateSku('item').then(sku => f('sku', sku));
+      // Leave SKU empty for new items — user fills it in manually
     }
 
     if (isEdit && id) {
@@ -188,6 +207,15 @@ export default function AddEditItemScreen() {
     if (!form.name.trim()) {
       Alert.alert('Required', 'Item name is required.');
       return;
+    }
+    if (form.barcode.trim()) {
+      const query = supabase.from('items').select('id').eq('barcode', form.barcode.trim()).eq('status', 'active');
+      if (isEdit && id) query.neq('id', id);
+      const { data: existing } = await query.limit(1);
+      if (existing && existing.length > 0) {
+        Alert.alert('Duplicate Barcode', 'Another item already uses this barcode. Please use a unique barcode.');
+        return;
+      }
     }
     setSaving(true);
     const payload = {
@@ -311,7 +339,7 @@ export default function AddEditItemScreen() {
           <FormSection title="Basic Information" colors={colors} isDark={isDark}>
             <FormField label="Name *" value={form.name} onChangeText={(v) => f('name', v)} placeholder="Item name" colors={colors} />
             <FormField label="Description" value={form.description} onChangeText={(v) => f('description', v)} placeholder="Optional description" multiline colors={colors} />
-            <FormField label="Unique ID" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="Unique identifier" colors={colors} />
+            <FormField label="SKU" value={form.sku} onChangeText={(v) => f('sku', v)} placeholder="e.g. ITEM-001" colors={colors} />
             <View>
               <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Barcode</Text>
               <View className="flex-row items-center gap-2">
@@ -324,7 +352,7 @@ export default function AddEditItemScreen() {
                   onChangeText={(v) => f('barcode', v)}
                 />
                 <TouchableOpacity
-                  onPress={() => router.push('/(tabs)/scanner')}
+                  onPress={() => { setScannerScanned(false); setScannerFlash(false); setShowScanner(true); }}
                   className="items-center justify-center rounded-xl p-3.5"
                   style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                   <QrCode color={colors.accent} size={20} />
@@ -504,6 +532,76 @@ export default function AddEditItemScreen() {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* Barcode Scanner Modal */}
+      <Modal visible={showScanner} animationType="slide" onRequestClose={() => setShowScanner(false)}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+          <View className="flex-row items-center justify-between px-5 py-3">
+            <TouchableOpacity
+              onPress={() => setShowScanner(false)}
+              className="rounded-xl p-2"
+              style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+              <ArrowLeft color={colors.textPrimary} size={20} />
+            </TouchableOpacity>
+            <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Scan Barcode</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {Platform.OS === 'web' || !CameraView ? (
+            <View className="flex-1 items-center justify-center px-5">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                Camera not available on this platform. Enter the barcode manually.
+              </Text>
+            </View>
+          ) : !camPermission?.granted ? (
+            <View className="flex-1 items-center justify-center px-8">
+              <QrCode color={colors.textSecondary} size={48} />
+              <Text className="mt-4 mb-2 text-center text-lg font-bold" style={{ color: colors.textPrimary }}>
+                Camera Permission Required
+              </Text>
+              <Text className="mb-6 text-center text-sm" style={{ color: colors.textSecondary }}>
+                Allow camera access to scan barcodes.
+              </Text>
+              <TouchableOpacity
+                onPress={requestCamPermission}
+                className="rounded-xl px-6 py-3.5"
+                style={{ backgroundColor: colors.accent }}>
+                <Text className="font-bold" style={{ color: colors.accentOnAccent }}>Grant Permission</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ flex: 1, backgroundColor: '#000' }}>
+              <CameraView
+                style={{ flex: 1 }}
+                facing="back"
+                enableTorch={scannerFlash}
+                barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93', 'codabar', 'itf14', 'qr'] }}
+                onBarcodeScanned={scannerScanned ? undefined : ({ data }: { data: string }) => {
+                  setScannerScanned(true);
+                  notificationSuccess();
+                  f('barcode', data);
+                  setShowScanner(false);
+                }}>
+                <View style={{ flex: 1 }}>
+                  {/* Overlay */}
+                  <View className="flex-1 items-center justify-center">
+                    <View style={{ width: 250, height: 250, borderWidth: 2, borderColor: colors.accent, borderRadius: 24, opacity: 0.7 }} />
+                  </View>
+                  {/* Flash toggle */}
+                  <TouchableOpacity
+                    onPress={() => setScannerFlash(!scannerFlash)}
+                    className="absolute bottom-8 self-center rounded-full p-4"
+                    style={{ backgroundColor: scannerFlash ? colors.accent : colors.surface }}>
+                    {scannerFlash
+                      ? <FlashlightOff color={colors.accentOnAccent} size={24} />
+                      : <Flashlight color={colors.textPrimary} size={24} />}
+                  </TouchableOpacity>
+                </View>
+              </CameraView>
+            </View>
+          )}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );

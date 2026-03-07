@@ -190,8 +190,13 @@ function NativeScanner() {
     }
   }, []);
 
+  const lastScannedRef = useRef<string | null>(null);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleBarcodeScan = async ({ data }: { data: string; type: string }) => {
     if (scanned || processing) return;
+    if (lastScannedRef.current === data) return;
+    lastScannedRef.current = data;
     setScanned(true);
     setProcessing(true);
     notificationSuccess();
@@ -212,8 +217,27 @@ function NativeScanner() {
         'Barcode Not Found',
         `No item found for barcode: ${data}\n\nWould you like to create a new item?`,
         [
-          { text: 'Create Item', onPress: () => router.push({ pathname: '/item/add', params: { barcode: data } }) },
-          { text: 'Scan Again', onPress: () => setScanned(false) },
+          {
+            text: 'Create Item',
+            onPress: () => {
+              router.push({ pathname: '/item/add', params: { barcode: data } });
+              // Delay reset so camera doesn't rescan immediately
+              scanTimeoutRef.current = setTimeout(() => {
+                setScanned(false);
+                lastScannedRef.current = null;
+              }, 2000);
+            },
+          },
+          {
+            text: 'Scan Again',
+            onPress: () => {
+              // Delay reset so the same barcode in view doesn't retrigger instantly
+              scanTimeoutRef.current = setTimeout(() => {
+                setScanned(false);
+                lastScannedRef.current = null;
+              }, 1500);
+            },
+          },
         ]
       );
     }
@@ -305,7 +329,7 @@ function NativeScanner() {
           {scanned && !processing && (
             <View className="mb-8 items-center">
               <TouchableOpacity
-                onPress={() => { setScanned(false); setFoundItem(null); }}
+                onPress={() => { setScanned(false); setFoundItem(null); lastScannedRef.current = null; }}
                 className="rounded-xl px-6 py-3.5"
                 style={{ backgroundColor: colors.accent }}>
                 <Text className="font-bold" style={{ color: colors.accentOnAccent }}>Scan Again</Text>
@@ -354,7 +378,7 @@ function NativeScanner() {
                 </View>
                 <View className="flex-row gap-3">
                   <TouchableOpacity
-                    onPress={() => { setShowResult(false); setScanned(false); }}
+                    onPress={() => { setShowResult(false); setScanned(false); lastScannedRef.current = null; }}
                     className="flex-1 items-center justify-center rounded-xl py-3.5"
                     style={{ backgroundColor: colors.background }}>
                     <Text className="font-semibold" style={{ color: colors.textSecondary }}>Scan Again</Text>

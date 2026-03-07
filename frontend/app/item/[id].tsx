@@ -222,7 +222,7 @@ export default function ItemDetailScreen() {
           </Text>
           {item.sku && (
             <Text className="mt-1 text-sm font-mono" style={{ color: colors.textSecondary }}>
-              Unique ID: {item.sku}
+              SKU: {item.sku}
             </Text>
           )}
           {item.barcode && (
