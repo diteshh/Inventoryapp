@@ -61,6 +61,7 @@ export default function PickListDetailScreen() {
   const [comments, setComments] = useState<PickListComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const refetchingRef = useRef(false);
   const [activeTab, setActiveTab] = useState<'items' | 'comments'>('items');
   const [pickingMode, setPickingMode] = useState(mode === 'picking');
   const [commentText, setCommentText] = useState('');
@@ -107,6 +108,7 @@ export default function PickListDetailScreen() {
     setComments((commentsRes.data ?? []) as PickListComment[]);
     setLoading(false);
     setRefreshing(false);
+    refetchingRef.current = false;
   }, [id]);
 
   loadRef.current = load;
@@ -117,6 +119,7 @@ export default function PickListDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refetchingRef.current = true;
       load();
     }, [load])
   );
@@ -276,9 +279,9 @@ export default function PickListDetailScreen() {
         onPress: async () => {
           await supabase.from('pick_list_items').delete().eq('pick_list_id', id!);
           await supabase.from('pick_list_comments').delete().eq('pick_list_id', id!);
-            await supabase.from('pick_lists').delete().eq('id', id!);
-            notificationSuccess();
-          router.replace('/(tabs)/pick-lists');
+          await supabase.from('pick_lists').delete().eq('id', id!);
+          notificationSuccess();
+          router.back();
         },
       },
     ]);
@@ -435,6 +438,7 @@ export default function PickListDetailScreen() {
                   ) : null
                 }
               ListEmptyComponent={
+                !refetchingRef.current ? (
                 <View className="items-center justify-center" style={{ paddingTop: 150 }}>
                   <ClipboardList color={colors.textSecondary} size={32} />
                   <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
@@ -450,6 +454,7 @@ export default function PickListDetailScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
+                ) : null
               }
               renderItem={({ item: pli }) => (
                 <PickListItemRow

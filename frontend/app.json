@@ -65,7 +65,8 @@
         {
           "faceIDPermission": "Allow Imperial Inventory to use Face ID for app lock."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

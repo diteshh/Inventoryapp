@@ -72,6 +72,7 @@ export default function PickingModeScreen() {
             return (
               <TouchableOpacity
                 key={opt.key}
+                activeOpacity={0.7}
                 onPress={() => selectMode(opt.key)}
                 className="flex-row items-center gap-4 rounded-2xl p-4"
                 style={{

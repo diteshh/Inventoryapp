@@ -291,18 +291,7 @@ export default function ItemDetailScreen() {
             <DetailRow label="Updated" value={formatRelativeTime(item.updated_at)} isLast colors={colors} />
           </View>
 
-          {/* Actions */}
-          <View className="mt-4 flex-row gap-3">
-            <TouchableOpacity
-              onPress={() => router.push(`/pick-list/add-item?item_id=${item.id}`)}
-              className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
-              style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
-              <ClipboardList color={colors.accent} size={18} />
-              <Text className="font-semibold" style={{ color: colors.accent }}>Add to Pick List</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Activity History */}
+{/* Activity History */}
           {activity.length > 0 && (
             <View className="mt-6">
               <Text className="mb-3 text-base font-semibold" style={{ color: colors.textPrimary }}>Item History</Text>
