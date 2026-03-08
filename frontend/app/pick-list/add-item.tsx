@@ -91,6 +91,7 @@ export default function AddItemToPickListScreen() {
   }, [searchItems, searchQuery, selectedFolderId]);
 
   const toggleItem = (item: Item) => {
+    if (item.quantity <= 0 && !selected.has(item.id)) return;
     setSelected((prev) => {
       const next = new Map(prev);
       if (next.has(item.id)) {
@@ -342,13 +343,13 @@ function ItemRow({
 
   return (
     <Pressable
-      onPress={() => !alreadyAdded && onToggle(item)}
+      onPress={() => !alreadyAdded && item.quantity > 0 && onToggle(item)}
       className="mb-2.5 rounded-2xl p-4"
       style={{
         backgroundColor: isSelected ? colors.accentMuted : colors.surface,
         borderWidth: 1,
         borderColor: isSelected ? `${colors.accent}55` : isDark ? colors.borderLight : colors.border,
-        opacity: alreadyAdded ? 0.4 : 1,
+        opacity: alreadyAdded || item.quantity <= 0 ? 0.4 : 1,
         ...(!isSelected ? getCardShadow(isDark) : {}),
       }}>
       <View className="flex-row items-center gap-3">
@@ -382,25 +383,23 @@ function ItemRow({
         )}
 
         {/* Info */}
-        <View className="flex-1">
-          <Text className="font-semibold" numberOfLines={1} style={{ color: colors.textPrimary }}>
+        <View className="flex-1 mr-2">
+          <Text className="font-semibold" style={{ color: colors.textPrimary }}>
             {item.name}
           </Text>
-          <View className="flex-row items-center gap-2 mt-0.5">
-            {item.sku && (
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                {item.sku}
-              </Text>
-            )}
-            {item.location && (
-              <Text className="text-xs" style={{ color: colors.accent }}>
-                {'\uD83D\uDCCD'} {item.location}
-              </Text>
-            )}
-          </View>
+          {item.sku && (
+            <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+              SKU: {item.sku}
+            </Text>
+          )}
           {alreadyAdded && (
             <Text className="text-xs mt-0.5" style={{ color: colors.warning }}>
               Already in list
+            </Text>
+          )}
+          {!alreadyAdded && item.quantity <= 0 && (
+            <Text className="text-xs mt-0.5" style={{ color: colors.destructive }}>
+              Out of stock
             </Text>
           )}
         </View>

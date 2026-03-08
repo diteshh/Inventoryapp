@@ -223,13 +223,7 @@ export default function PickListDetailScreen() {
   };
 
   const startPicking = () => {
-    // Capture current DB quantities as floor
-    const floor: Record<string, number> = {};
-    for (const item of items) {
-      floor[item.id] = item.quantity_picked;
-    }
-    setPickedFloor(floor);
-    setPickingMode(true);
+    router.push(`/pick-list/picking?pickListId=${id}`);
   };
 
   const stopPicking = async () => {
