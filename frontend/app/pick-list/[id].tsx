@@ -7,6 +7,7 @@ import type { Item, PickList, PickListComment, PickListItem } from '@/lib/types'
 import {
   formatCurrency,
   formatRelativeTime,
+  getPhotoUrl,
   getPickListStatusColor,
   getPickListStatusLabel,
   logActivity,
@@ -31,6 +32,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -691,12 +693,21 @@ function PickListItemRow({
           </TouchableOpacity>
         )}
 
-        {/* Item icon */}
-        <View
-          className="items-center justify-center rounded-xl p-2.5"
-          style={{ backgroundColor: colors.accentMuted }}>
-          <Package color={colors.accent} size={18} />
-        </View>
+        {/* Item photo */}
+        {pli.items?.photos && pli.items.photos.length > 0 ? (
+          <Image
+            source={{ uri: getPhotoUrl(pli.items.photos[0]) ?? undefined }}
+            className="rounded-xl"
+            style={{ width: 48, height: 48, borderRadius: 12 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            className="items-center justify-center rounded-xl"
+            style={{ width: 48, height: 48, backgroundColor: colors.accentMuted }}>
+            <Package color={colors.accent} size={20} />
+          </View>
+        )}
 
         {/* Info */}
         <View className="flex-1">

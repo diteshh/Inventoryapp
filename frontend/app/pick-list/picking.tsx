@@ -16,7 +16,7 @@ import {
   Flashlight,
   FlashlightOff,
   X,
-  ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -540,20 +540,21 @@ export default function GuidedPickingScreen() {
 
       {/* Item details card */}
       <View
-        className="mx-5 mb-4 rounded-2xl p-4"
+        className="mx-5 mb-4 rounded-2xl p-5"
         style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.border : colors.borderLight, ...getCardShadow(isDark) }}>
+        {/* Large item image */}
         <View className="flex-row gap-4">
           {itemPhoto ? (
             <Image
               source={{ uri: itemPhoto }}
-              style={{ width: 72, height: 72, borderRadius: 12 }}
-              resizeMode="cover"
+              style={{ width: 160, height: 160, borderRadius: 14, backgroundColor: colors.background }}
+              resizeMode="contain"
             />
           ) : (
             <View
               className="items-center justify-center rounded-xl"
-              style={{ width: 72, height: 72, backgroundColor: colors.background }}>
-              <Package color={colors.textSecondary} size={28} />
+              style={{ width: 160, height: 160, backgroundColor: colors.background }}>
+              <Package color={colors.textSecondary} size={36} />
             </View>
           )}
           <View className="flex-1">
@@ -561,13 +562,8 @@ export default function GuidedPickingScreen() {
               {currentItem.items?.name ?? 'Unknown Item'}
             </Text>
             {currentItem.items?.sku && (
-              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
                 SKU: {currentItem.items.sku}
-              </Text>
-            )}
-            {currentItem.items?.barcode && (
-              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-                Barcode: {currentItem.items.barcode}
               </Text>
             )}
             {location && (
@@ -575,14 +571,14 @@ export default function GuidedPickingScreen() {
                 {'\uD83D\uDCCD'} {location}
               </Text>
             )}
-          </View>
-          <View className="items-end">
-            <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
-              {remainingQty}
-            </Text>
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
-              to pick
-            </Text>
+            <View className="flex-row items-baseline gap-1 mt-2">
+              <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
+                {remainingQty}
+              </Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                to pick
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -599,7 +595,7 @@ export default function GuidedPickingScreen() {
             colors={colors}
           />
         ) : (
-          <View className="flex-1 items-center justify-center">
+          <View className="items-center justify-center py-6">
             {Platform.OS !== 'web' && CameraView ? (
               <TouchableOpacity
                 onPress={() => { setShowCamera(true); setScanned(false); lastScannedRef.current = null; }}
@@ -643,7 +639,7 @@ export default function GuidedPickingScreen() {
           }}
           className="flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
           style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...getCardShadow(isDark) }}>
-          <ShieldCheck size={18} color={colors.accent} />
+          <ClipboardCheck size={18} color={colors.accent} />
           <Text className="text-sm font-bold" style={{ color: colors.textPrimary }}>
             Verify Manually
           </Text>
@@ -705,35 +701,39 @@ function CameraComponent({
   }
 
   return (
-    <View className="flex-1 rounded-2xl overflow-hidden" style={{ backgroundColor: '#000' }}>
-      <CameraView
-        style={{ flex: 1 }}
-        facing="back"
-        enableTorch={flashOn}
-        onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr', 'code128', 'code39', 'ean13', 'ean8', 'upc_a', 'upc_e', 'datamatrix'],
-        }}>
-        <View className="flex-1">
-          {/* Camera controls */}
-          <View className="flex-row items-center justify-between px-4 pt-3">
-            <TouchableOpacity
-              onPress={onClose}
-              className="rounded-full p-2"
-              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <X color="#fff" size={20} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onToggleFlash}
-              className="rounded-full p-2"
-              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              {flashOn ? <FlashlightOff color="#fff" size={20} /> : <Flashlight color="#fff" size={20} />}
-            </TouchableOpacity>
-          </View>
+    <View className="items-center">
+      {/* Controls row */}
+      <View className="flex-row items-center justify-between w-full px-2 mb-2">
+        <TouchableOpacity
+          onPress={onClose}
+          className="rounded-full p-2"
+          style={{ backgroundColor: colors.surface }}>
+          <X color={colors.textPrimary} size={18} />
+        </TouchableOpacity>
+        <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+          Point camera at barcode
+        </Text>
+        <TouchableOpacity
+          onPress={onToggleFlash}
+          className="rounded-full p-2"
+          style={{ backgroundColor: colors.surface }}>
+          {flashOn ? <FlashlightOff color={colors.textPrimary} size={18} /> : <Flashlight color={colors.textPrimary} size={18} />}
+        </TouchableOpacity>
+      </View>
 
-          {/* Scan frame */}
+      {/* Compact camera viewfinder */}
+      <View className="rounded-2xl overflow-hidden" style={{ width: 260, height: 180, backgroundColor: '#000' }}>
+        <CameraView
+          style={{ flex: 1 }}
+          facing="back"
+          enableTorch={flashOn}
+          onBarcodeScanned={scanned ? undefined : onBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr', 'code128', 'code39', 'ean13', 'ean8', 'upc_a', 'upc_e', 'datamatrix'],
+          }}>
+          {/* Corner markers */}
           <View className="flex-1 items-center justify-center">
-            <View style={{ width: 250, height: 180 }}>
+            <View style={{ width: 220, height: 140 }}>
               {[
                 { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3 },
                 { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3 },
@@ -766,12 +766,9 @@ function CameraComponent({
                 />
               )}
             </View>
-            <Text className="mt-4 text-center text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              Point camera at item barcode
-            </Text>
           </View>
-        </View>
-      </CameraView>
+        </CameraView>
+      </View>
     </View>
   );
 }
