@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useTeam } from '@/lib/team-context';
 import { useTheme, getCardShadow } from '@/lib/theme-context';
 import type { ThemeColors } from '@/lib/theme-context';
-import type { Item, PickList, PickListComment, PickListItem } from '@/lib/types';
+import type { Item, PickList, PickListComment, PickListItem, PickListIssue } from '@/lib/types';
 import {
   formatCurrency,
   formatRelativeTime,
@@ -26,6 +26,7 @@ import {
   Send,
   Trash2,
   ZapIcon,
+  AlertTriangle,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -54,7 +55,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 export default function PickListDetailScreen() {
-  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
@@ -64,21 +65,19 @@ export default function PickListDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const refetchingRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<'items' | 'comments'>('items');
-  const [pickingMode, setPickingMode] = useState(mode === 'picking');
+  const [issues, setIssues] = useState<(PickListIssue & { pick_list_items?: { items?: Item | null } | null })[]>([]);
+  const [activeTab, setActiveTab] = useState<'items' | 'comments' | 'issues'>('items');
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [assignedName, setAssignedName] = useState<string | null>(null);
-  const [pickedFloor, setPickedFloor] = useState<Record<string, number>>({});
-  const pickingRef = useRef(false);
-  const pickingModeRef = useRef(false);
+  const [completedByName, setCompletedByName] = useState<string | null>(null);
   const commentsRef = useRef<FlatList>(null);
   const loadRef = useRef<() => Promise<void>>(async () => {});
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [plRes, itemsRes, commentsRes] = await Promise.all([
+    const [plRes, itemsRes, commentsRes, issuesRes] = await Promise.all([
       supabase.from('pick_lists').select('*').eq('id', id).single(),
       supabase
         .from('pick_list_items')
@@ -90,6 +89,11 @@ export default function PickListDetailScreen() {
         .select('*')
         .eq('pick_list_id', id)
         .order('created_at', { ascending: true }),
+      supabase
+        .from('pick_list_issues')
+        .select('*, pick_list_items(items(*))')
+        .eq('pick_list_id', id)
+        .order('created_at', { ascending: false }),
     ]);
 
     if (plRes.data) {
@@ -106,8 +110,28 @@ export default function PickListDetailScreen() {
         setAssignedName(null);
       }
     }
-    setItems((itemsRes.data ?? []) as unknown as PickListItemWithItem[]);
+    const loadedItems = (itemsRes.data ?? []) as unknown as PickListItemWithItem[];
+    setItems(loadedItems);
     setComments((commentsRes.data ?? []) as PickListComment[]);
+    setIssues((issuesRes.data ?? []) as any);
+
+    // Resolve who completed the pick list
+    if (plRes.data && ((plRes.data as PickList).status === 'complete' || (plRes.data as PickList).status === 'partially_complete')) {
+      const lastPicked = [...loadedItems]
+        .filter((i) => i.picked_by)
+        .sort((a, b) => new Date(b.picked_at ?? 0).getTime() - new Date(a.picked_at ?? 0).getTime())[0];
+      if (lastPicked?.picked_by) {
+        const { data: pickerProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', lastPicked.picked_by)
+          .single();
+        setCompletedByName(pickerProfile?.full_name ?? 'Unknown');
+      }
+    } else {
+      setCompletedByName(null);
+    }
+
     setLoading(false);
     setRefreshing(false);
     refetchingRef.current = false;
@@ -129,18 +153,17 @@ export default function PickListDetailScreen() {
   // Realtime subscription
   useEffect(() => {
     if (!id) return;
-    const safeLoad = () => { if (!pickingRef.current && !pickingModeRef.current) loadRef.current(); };
+    const safeLoad = () => { loadRef.current(); };
     const channel = supabase
       .channel(`pick_list_${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_list_items', filter: `pick_list_id=eq.${id}` }, safeLoad)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_lists', filter: `id=eq.${id}` }, safeLoad)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_list_comments', filter: `pick_list_id=eq.${id}` }, safeLoad)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_list_issues', filter: `pick_list_id=eq.${id}` }, safeLoad)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  useEffect(() => { pickingModeRef.current = pickingMode; }, [pickingMode]);
 
   const updateStatus = async (newStatus: string) => {
     if (!pickList) return;
@@ -158,6 +181,50 @@ export default function PickListDetailScreen() {
       if (newStatus === 'complete') {
         await logActivity(user?.id, 'pick_list_completed', { pickListId: pickList.id, details: { name: pickList.name }, teamId });
       }
+
+        // Notify owners/admins if there are reported issues
+        if (newStatus === 'complete' || newStatus === 'partially_complete') {
+          try {
+            const { data: issueRows } = await supabase
+              .from('pick_list_issues')
+              .select('*, pick_list_items(items(name))')
+              .eq('pick_list_id', pickList.id);
+
+            if (issueRows && issueRows.length > 0 && user) {
+              const recipientSet = new Set<string>([user.id]);
+              if (teamId) {
+                const { data: members } = await supabase
+                  .from('team_members')
+                  .select('user_id')
+                  .eq('team_id', teamId)
+                  .in('role', ['owner', 'admin']);
+                for (const m of members ?? []) recipientSet.add(m.user_id);
+              }
+              const recipients = [...recipientSet];
+
+              if (recipients.length > 0) {
+                const issueLines = (issueRows as any[]).map((iss) => {
+                  const itemName = iss.pick_list_items?.items?.name ?? 'Unknown item';
+                  const typeLabel = (iss.issue_type as string).replace(/_/g, ' ');
+                  return `• ${itemName}: ${typeLabel} (picked ${iss.quantity_actually_picked}/${iss.quantity_affected + iss.quantity_actually_picked})`;
+                });
+
+                await supabase.from('notifications').insert(
+                  recipients.map((uid) => ({
+                    user_id: uid,
+                    type: 'pick_list_issue',
+                    title: `Issues reported on "${pickList.name}"`,
+                    message: issueLines.join('\n'),
+                    related_pick_list_id: pickList.id,
+                  }))
+                );
+              }
+            }
+          } catch {
+            // Non-critical
+          }
+        }
+
         notificationSuccess();
         load();
       } else {
@@ -167,83 +234,8 @@ export default function PickListDetailScreen() {
   };
 
   // Local-only pick (no DB call until commit)
-  const pickItem = (pli: PickListItemWithItem, newQty: number) => {
-    if (newQty === pli.quantity_picked) return;
-    setItems((prev) =>
-      prev.map((i) => (i.id === pli.id ? { ...i, quantity_picked: newQty } : i))
-    );
-    impactLight();
-  };
-
-  // Batch commit picks to DB
-  const commitPicks = async () => {
-    if (!user || !pickList) return;
-    pickingRef.current = true;
-    try {
-      for (const item of items) {
-        const floor = pickedFloor[item.id] ?? 0;
-        const delta = item.quantity_picked - floor;
-        if (delta === 0) continue;
-        if (delta > 0) {
-          const { data: stockBefore } = await supabase
-            .from('items')
-            .select('quantity')
-            .eq('id', item.item_id!)
-            .single();
-          const qtyBefore = stockBefore?.quantity ?? 0;
-          const { error } = await supabase.rpc('pick_item', {
-            p_pick_list_item_id: item.id,
-            p_quantity_picked: item.quantity_picked,
-            p_picked_by: user.id,
-          });
-          if (!error) {
-            await supabase.from('transactions').insert({
-              item_id: item.item_id,
-              type: 'pick',
-              quantity_change: -delta,
-              quantity_before: qtyBefore,
-              quantity_after: qtyBefore - delta,
-              reference_type: 'pick_list',
-              reference_id: pickList.id,
-              notes: `Picked for: ${pickList.name}`,
-              created_by: user.id,
-              team_id: teamId ?? null,
-            });
-            await logActivity(user.id, 'quantity_adjusted', {
-              itemId: item.item_id,
-              details: {
-                item_name: item.items?.name,
-                old_qty: qtyBefore,
-                new_qty: qtyBefore - delta,
-                reason: `Picked for pick list: ${pickList.name}`,
-              },
-              teamId,
-            });
-          }
-        }
-      }
-    } finally {
-      pickingRef.current = false;
-    }
-  };
-
   const startPicking = () => {
     router.push(`/pick-list/picking?pickListId=${id}`);
-  };
-
-  const stopPicking = async () => {
-    await commitPicks();
-    setPickingMode(false);
-    load();
-  };
-
-  const completePickList = async (status: 'complete' | 'partially_complete') => {
-    await commitPicks();
-    // Optimistically update status so the bottom bar hides immediately
-    setPickList((prev) => prev ? { ...prev, status } : prev);
-    setPickingMode(false);
-    await updateStatus(status);
-    load();
   };
 
   const updateRequestedQty = async (pliId: string, qty: number) => {
@@ -279,6 +271,7 @@ export default function PickListDetailScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          await supabase.from('pick_list_issues').delete().eq('pick_list_id', id!);
           await supabase.from('pick_list_items').delete().eq('pick_list_id', id!);
           await supabase.from('pick_list_comments').delete().eq('pick_list_id', id!);
           await supabase.from('pick_lists').delete().eq('id', id!);
@@ -321,7 +314,6 @@ export default function PickListDetailScreen() {
   const statusColor = getPickListStatusColor(pickList.status, colors);
   const isDraft = pickList.status === 'draft';
   const canPick = pickList.assigned_to === null || pickList.assigned_to === user?.id;
-  const allPicked = items.length > 0 && items.every((i) => i.quantity_picked >= i.quantity_requested);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -356,10 +348,15 @@ export default function PickListDetailScreen() {
               </Text>
             </View>
 
-            {/* Assigned to */}
+            {/* Assigned to / Completed by */}
             <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
               Assigned to: {assignedName ?? 'Everyone'}
             </Text>
+            {(pickList.status === 'complete' || pickList.status === 'partially_complete') && completedByName && (
+              <Text className="text-xs mb-3" style={{ color: pickList.status === 'complete' ? colors.success : colors.warning }}>
+                {pickList.status === 'complete' ? 'Completed' : 'Partially completed'} by: {completedByName}
+              </Text>
+            )}
 
             {/* Progress bar */}
             {items.length > 0 && (
@@ -392,20 +389,38 @@ export default function PickListDetailScreen() {
 
         {/* Tabs */}
         <View className="mx-5 mb-3 flex-row rounded-xl p-1" style={{ backgroundColor: colors.surface }}>
-          {(['items', 'comments'] as const).map((tab) => (
-            <TouchableOpacity
+          {(['items', 'comments', ...(issues.length > 0 ? ['issues'] : [])] as const).map((tab) => (
+            <Pressable
               key={tab}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => setActiveTab(tab as any)}
               className="flex-1 items-center rounded-lg py-2"
               style={{ backgroundColor: activeTab === tab ? colors.accent : 'transparent' }}>
-              <Text className="text-sm font-semibold" style={{ color: activeTab === tab ? colors.accentOnAccent : colors.textSecondary }}>
-                {tab === 'items' ? `Items (${items.length})` : `Comments (${comments.length})`}
+              <Text className="text-xs font-semibold" style={{ color: activeTab === tab ? colors.accentOnAccent : colors.textSecondary }}>
+                {tab === 'items' ? `Items (${items.length})` : tab === 'comments' ? `Comments (${comments.length})` : `Issues (${issues.length})`}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
-        {activeTab === 'items' ? (
+        {activeTab === 'issues' ? (
+          <FlatList
+            data={issues}
+            keyExtractor={(i) => i.id}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 140 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View className="items-center py-12">
+                <AlertTriangle color={colors.textSecondary} size={32} />
+                <Text className="mt-3 text-sm" style={{ color: colors.textSecondary }}>
+                  No issues reported
+                </Text>
+              </View>
+            }
+            renderItem={({ item: issue }) => (
+              <IssueRow issue={issue} colors={colors} isDark={isDark} />
+            )}
+          />
+        ) : activeTab === 'items' ? (
           <>
             <FlatList
               data={items}
@@ -461,10 +476,7 @@ export default function PickListDetailScreen() {
               renderItem={({ item: pli }) => (
                 <PickListItemRow
                   pli={pli}
-                  pickingMode={pickingMode && pickList.status !== 'complete'}
                   canEdit={pickList.status === 'draft'}
-                  pickedFloor={pickedFloor[pli.id] ?? 0}
-                  onPick={(qty) => pickItem(pli, qty)}
                   onUpdateRequested={(qty) => updateRequestedQty(pli.id, qty)}
                   onRemove={() => removePickListItem(pli.id)}
                   colors={colors}
@@ -560,7 +572,6 @@ export default function PickListDetailScreen() {
                 </View>
               ) : null
             ) : canPick ? (
-              !pickingMode ? (
                 <TouchableOpacity
                   onPress={startPicking}
                   className="flex-row items-center justify-center gap-2 rounded-2xl py-3.5"
@@ -568,32 +579,6 @@ export default function PickListDetailScreen() {
                   <ClipboardList size={18} color={colors.accentOnAccent} />
                   <Text className="text-sm font-bold" style={{ color: colors.accentOnAccent }}>Start Picking</Text>
                 </TouchableOpacity>
-              ) : (
-                <View className="flex-row gap-3">
-                  <TouchableOpacity
-                    onPress={stopPicking}
-                    className="flex-1 flex-row items-center justify-center gap-1.5 rounded-2xl py-3.5"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...getCardShadow(isDark) }}>
-                    <Text className="text-sm font-bold" style={{ color: colors.textPrimary }}>Stop Picking</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => completePickList(allPicked ? 'complete' : 'partially_complete')}
-                    disabled={statusUpdating}
-                    className="flex-1 flex-row items-center justify-center gap-1.5 rounded-2xl py-3.5"
-                    style={{ backgroundColor: allPicked ? colors.success : colors.warning, ...getCardShadow(isDark) }}>
-                    {statusUpdating ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <CheckCircle size={16} color="#fff" />
-                        <Text className="text-sm font-bold" style={{ color: '#fff' }}>
-                          {allPicked ? 'Complete' : 'Partially Complete'}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )
             ) : null}
           </View>
         )}
@@ -604,60 +589,30 @@ export default function PickListDetailScreen() {
 
 function PickListItemRow({
   pli,
-  pickingMode,
   canEdit,
-  pickedFloor,
-  onPick,
   onUpdateRequested,
   onRemove,
   colors,
   isDark,
 }: {
   pli: PickListItemWithItem;
-  pickingMode: boolean;
   canEdit: boolean;
-  pickedFloor: number;
-  onPick: (qty: number) => void;
   onUpdateRequested: (qty: number) => void;
   onRemove: () => void;
   colors: ThemeColors;
   isDark: boolean;
 }) {
-  const [qtyText, setQtyText] = useState(String(pli.quantity_picked));
-  const [isEditingQty, setIsEditingQty] = useState(false);
   const [reqText, setReqText] = useState(String(pli.quantity_requested));
   const [isEditingReq, setIsEditingReq] = useState(false);
-
-  // Sync qtyText with pli.quantity_picked when not editing
-  useEffect(() => {
-    if (!isEditingQty) setQtyText(String(pli.quantity_picked));
-  }, [pli.quantity_picked, isEditingQty]);
 
   useEffect(() => {
     if (!isEditingReq) setReqText(String(pli.quantity_requested));
   }, [pli.quantity_requested, isEditingReq]);
 
   const isPicked = pli.quantity_picked >= pli.quantity_requested;
-  const isPartial = pli.quantity_picked > 0 && !isPicked;
 
   const rowBg = isPicked ? colors.successMuted : colors.surface;
   const borderColor = isPicked ? `${colors.success}44` : isDark ? colors.borderLight : colors.border;
-
-  const atMin = pli.quantity_picked <= pickedFloor;
-  const atMax = pli.quantity_picked >= pli.quantity_requested;
-
-  const commitQtyText = () => {
-    setIsEditingQty(false);
-    const num = parseInt(qtyText, 10);
-    if (isNaN(num) || num < pickedFloor) {
-      setQtyText(String(pickedFloor));
-      onPick(pickedFloor);
-    } else {
-      const clamped = Math.min(num, pli.quantity_requested);
-      setQtyText(String(clamped));
-      onPick(clamped);
-    }
-  };
 
   const commitReqText = () => {
     setIsEditingReq(false);
@@ -677,22 +632,6 @@ function PickListItemRow({
       className="mb-3 rounded-2xl p-4"
       style={{ backgroundColor: rowBg, borderWidth: 1, borderColor, ...(!isPicked ? getCardShadow(isDark) : {}) }}>
       <View className="flex-row items-start gap-3">
-        {/* Pick checkbox */}
-        {pickingMode && (
-          <TouchableOpacity
-            onPress={() => onPick(isPicked ? pickedFloor : pli.quantity_requested)}
-            className="mt-0.5 items-center justify-center rounded-full"
-            style={{
-              width: 26,
-              height: 26,
-              backgroundColor: isPicked ? colors.success : colors.background,
-              borderWidth: 2,
-              borderColor: isPicked ? colors.success : colors.border,
-            }}>
-            {isPicked && <CheckCircle size={14} color={colors.accentOnAccent} fill={colors.accentOnAccent} />}
-          </TouchableOpacity>
-        )}
-
         {/* Item photo */}
         {pli.items?.photos && pli.items.photos.length > 0 ? (
           <Image
@@ -711,7 +650,7 @@ function PickListItemRow({
 
         {/* Info */}
         <View className="flex-1">
-          <Text className="font-semibold" numberOfLines={2} style={{ opacity: isPicked && pickingMode ? 0.5 : 1, color: colors.textPrimary }}>
+          <Text className="font-semibold" numberOfLines={2} style={{ color: colors.textPrimary }}>
             {pli.items?.name ?? 'Unknown Item'}
           </Text>
           {pli.items?.sku && (
@@ -726,7 +665,7 @@ function PickListItemRow({
           )}
 
           {/* Quantity requested stepper — inline in edit mode */}
-          {canEdit && !pickingMode && (
+          {canEdit && (
             <View className="mt-6 items-start">
               <View className="flex-row items-center gap-3">
                 <Pressable
@@ -770,7 +709,7 @@ function PickListItemRow({
 
         {/* Right side */}
         <View className="items-end gap-1.5">
-          {canEdit && !pickingMode && (
+          {canEdit && (
             <TouchableOpacity onPress={onRemove} className="p-1.5 rounded-lg" style={{ backgroundColor: colors.destructiveMuted }}>
               <Trash2 size={13} color={colors.destructive} />
             </TouchableOpacity>
@@ -794,54 +733,67 @@ function PickListItemRow({
         </View>
       </View>
 
-      {/* Picking quantity stepper */}
-      {pickingMode && (
-        <View className="mt-3 flex-row items-center justify-between">
-          <Text className="text-xs" style={{ color: colors.textSecondary }}>Qty picked:</Text>
-          <View className="flex-row items-center gap-1.5">
-            <Pressable
-              onPress={() => { if (!atMin) onPick(pli.quantity_picked - 1); }}
-              className="items-center justify-center rounded-lg"
-              style={{ width: 32, height: 32, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, opacity: atMin ? 0.4 : 1 }}>
-              <Text className="font-bold text-base" style={{ color: colors.textPrimary }}>{'\u2212'}</Text>
-            </Pressable>
-            <TextInput
-              style={{
-                minWidth: 40,
-                textAlign: 'center',
-                color: colors.textPrimary,
-                fontWeight: '700',
-                fontSize: 14,
-                backgroundColor: colors.background,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 8,
-                paddingVertical: 4,
-                paddingHorizontal: 6,
-              }}
-              keyboardType="number-pad"
-              value={qtyText}
-              onFocus={() => setIsEditingQty(true)}
-              onChangeText={(text) => setQtyText(text.replace(/[^0-9]/g, ''))}
-              onBlur={commitQtyText}
-              onSubmitEditing={commitQtyText}
-              selectTextOnFocus
-            />
-            <Pressable
-              onPress={() => { if (!atMax) onPick(pli.quantity_picked + 1); }}
-              className="items-center justify-center rounded-lg"
-              style={{ width: 32, height: 32, backgroundColor: colors.accent, opacity: atMax ? 0.4 : 1 }}>
-              <Text style={{ color: colors.accentOnAccent }} className="font-bold text-base">+</Text>
-            </Pressable>
-            <TouchableOpacity
-              onPress={() => onPick(pli.quantity_requested)}
-              className="items-center rounded-lg py-1.5 px-3 ml-1"
-              style={{ backgroundColor: colors.successMuted, borderWidth: 1, borderColor: `${colors.success}55` }}>
-              <Text className="text-xs font-semibold" style={{ color: colors.success }}>Pick All</Text>
-            </TouchableOpacity>
-          </View>
+    </View>
+  );
+}
+
+const ISSUE_TYPE_LABELS: Record<string, string> = {
+  damaged_stock: 'Damaged Stock',
+  missing_unit: 'Missing Unit',
+  wrong_stock_at_location: 'Wrong Stock at Location',
+  barcode_mismatch: 'Barcode Mismatch',
+  other: 'Other',
+};
+
+function IssueRow({
+  issue,
+  colors,
+  isDark,
+}: {
+  issue: PickListIssue & { pick_list_items?: { items?: Item | null } | null };
+  colors: ThemeColors;
+  isDark: boolean;
+}) {
+  const itemName = (issue as any).pick_list_items?.items?.name ?? 'Unknown Item';
+  return (
+    <View
+      className="mb-3 rounded-2xl p-4"
+      style={{
+        backgroundColor: colors.warningMuted,
+        borderWidth: 1,
+        borderColor: `${colors.warning}44`,
+      }}>
+      <View className="flex-row items-start gap-3">
+        <View
+          className="items-center justify-center rounded-xl mt-0.5"
+          style={{ width: 36, height: 36, backgroundColor: `${colors.warning}22` }}>
+          <AlertTriangle size={18} color={colors.warning} />
         </View>
-      )}
+        <View className="flex-1">
+          <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>
+            {ISSUE_TYPE_LABELS[issue.issue_type] ?? issue.issue_type}
+          </Text>
+          <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+            {itemName}
+          </Text>
+          <View className="flex-row items-center gap-3 mt-2">
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              Affected: <Text style={{ fontWeight: '700', color: colors.warning }}>{issue.quantity_affected}</Text>
+            </Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              Picked: <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{issue.quantity_actually_picked}</Text>
+            </Text>
+          </View>
+          {issue.notes && (
+            <Text className="text-xs mt-2 italic" style={{ color: colors.textSecondary }}>
+              "{issue.notes}"
+            </Text>
+          )}
+          <Text className="text-[10px] mt-2" style={{ color: colors.textTertiary }}>
+            {formatRelativeTime(issue.created_at)}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }

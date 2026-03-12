@@ -92,7 +92,7 @@ export default function MenuScreen() {
               icon={<Settings color={colors.textSecondary} size={18} />}
               iconBg={`${colors.textSecondary}22`}
               label="User Profile"
-              subtitle="Profile, PIN, preferences"
+              subtitle="Name, business details"
               onPress={() => router.push('/settings')}
               colors={colors}
             />

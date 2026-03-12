@@ -22,6 +22,7 @@ import {
   ClipboardList,
   FolderOpen,
   Activity,
+  ExternalLink,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -36,6 +37,7 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LowStockBadge } from '@/components/ui/Badge';
@@ -51,7 +53,7 @@ export default function ItemDetailScreen() {
   const [item, setItem] = useState<Item | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [folder, setFolder] = useState<Folder | null>(null);
-  const [activity, setActivity] = useState<ActivityLog[]>([]);
+  const [activity, setActivity] = useState<(ActivityLog & { userName?: string | null })[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
@@ -79,7 +81,15 @@ export default function ItemDetailScreen() {
         setFolder(folderData as Folder);
       }
     }
-    setActivity((activityRes.data ?? []) as ActivityLog[]);
+    // Resolve user names for activity entries
+    const actRows = (activityRes.data ?? []) as ActivityLog[];
+    const userIds = [...new Set(actRows.map((r) => r.user_id).filter(Boolean))] as string[];
+    let profileMap: Record<string, string | null> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
+      for (const p of profiles ?? []) profileMap[p.id] = p.full_name;
+    }
+    setActivity(actRows.map((r) => ({ ...r, userName: r.user_id ? (profileMap[r.user_id] ?? null) : null })));
     setLoading(false);
   }, [id]);
 
@@ -291,12 +301,83 @@ export default function ItemDetailScreen() {
             <DetailRow label="Updated" value={formatRelativeTime(item.updated_at)} isLast colors={colors} />
           </View>
 
+          {/* Custom Fields */}
+          {(() => {
+            const cf = Array.isArray(item.custom_fields) ? item.custom_fields as { name: string; type: string; value: any; options?: string[] }[] : [];
+            if (cf.length === 0) return null;
+            return (
+              <View className="mt-4 rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark) }}>
+                <SectionTitle title="Custom Fields" colors={colors} />
+                {cf.map((field, idx) => {
+                  let displayValue: string | null = null;
+                  if (field.type === 'checkbox') {
+                    displayValue = field.value ? 'Yes' : 'No';
+                  } else if (field.type === 'web_link' && field.value) {
+                    return (
+                      <View
+                        key={idx}
+                        className="flex-row items-start px-4 py-3"
+                        style={{ borderBottomWidth: idx === cf.length - 1 ? 0 : 1, borderBottomColor: colors.border }}>
+                        <Text className="w-28 text-sm" style={{ color: colors.textSecondary }}>{field.name}</Text>
+                        <TouchableOpacity
+                          className="flex-1 flex-row items-center gap-1.5"
+                          onPress={() => Linking.openURL(field.value)}>
+                          <Text className="text-sm" style={{ color: colors.accent }} numberOfLines={1}>{field.value}</Text>
+                          <ExternalLink color={colors.accent} size={12} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  } else if (field.type === 'email' && field.value) {
+                    return (
+                      <View
+                        key={idx}
+                        className="flex-row items-start px-4 py-3"
+                        style={{ borderBottomWidth: idx === cf.length - 1 ? 0 : 1, borderBottomColor: colors.border }}>
+                        <Text className="w-28 text-sm" style={{ color: colors.textSecondary }}>{field.name}</Text>
+                        <TouchableOpacity
+                          className="flex-1"
+                          onPress={() => Linking.openURL(`mailto:${field.value}`)}>
+                          <Text className="text-sm" style={{ color: colors.accent }}>{field.value}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  } else if (field.type === 'phone' && field.value) {
+                    return (
+                      <View
+                        key={idx}
+                        className="flex-row items-start px-4 py-3"
+                        style={{ borderBottomWidth: idx === cf.length - 1 ? 0 : 1, borderBottomColor: colors.border }}>
+                        <Text className="w-28 text-sm" style={{ color: colors.textSecondary }}>{field.name}</Text>
+                        <TouchableOpacity
+                          className="flex-1"
+                          onPress={() => Linking.openURL(`tel:${field.value}`)}>
+                          <Text className="text-sm" style={{ color: colors.accent }}>{field.value}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  } else {
+                    displayValue = field.value != null ? String(field.value) : null;
+                  }
+                  return (
+                    <DetailRow
+                      key={idx}
+                      label={field.name}
+                      value={displayValue || '—'}
+                      isLast={idx === cf.length - 1}
+                      colors={colors}
+                    />
+                  );
+                })}
+              </View>
+            );
+          })()}
+
 {/* Activity History */}
           {activity.length > 0 && (
             <View className="mt-6">
               <Text className="mb-3 text-base font-semibold" style={{ color: colors.textPrimary }}>Item History</Text>
-                {activity.map((log) => {
-                  const details = log.details as any;
+                {activity.slice(0, 5).map((log) => {
+                  const details = (log.details ?? {}) as any;
                   const isPicked = log.action_type === 'item_picked';
                   return (
                     <View key={log.id} className="mb-2 flex-row items-start gap-3">
@@ -325,6 +406,11 @@ export default function ItemDetailScreen() {
                             )}
                           </>
                         )}
+                        {log.userName && (
+                          <Text className="text-[10px] mt-0.5" style={{ color: colors.accent }}>
+                            by {log.userName}
+                          </Text>
+                        )}
                       </View>
                       <Text className="text-xs" style={{ color: colors.textSecondary }}>
                         {formatRelativeTime(log.timestamp)}
@@ -332,6 +418,16 @@ export default function ItemDetailScreen() {
                     </View>
                   );
                 })}
+                {activity.length > 5 && (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/item/history?itemId=${id}&itemName=${encodeURIComponent(item?.name ?? 'Item')}`)}
+                    className="mt-2 flex-row items-center justify-center rounded-xl py-3"
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <Text className="text-sm font-semibold" style={{ color: colors.accent }}>
+                      View All History ({activity.length})
+                    </Text>
+                  </TouchableOpacity>
+                )}
             </View>
           )}
         </View>

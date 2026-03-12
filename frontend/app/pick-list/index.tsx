@@ -206,7 +206,7 @@ export default function PickListListScreen() {
                   </Text>
                   {item.status !== 'draft' && item.status !== 'complete' && (
                     <TouchableOpacity
-                      onPress={() => router.push(`/pick-list/${item.id}?mode=picking`)}
+                      onPress={() => router.push(`/pick-list/picking?pickListId=${item.id}`)}
                       className="rounded-lg px-3 py-1.5"
                       style={{ backgroundColor: `${statusColor}22` }}>
                       <Text className="text-xs font-semibold" style={{ color: statusColor }}>Pick Now</Text>

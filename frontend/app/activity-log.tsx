@@ -59,36 +59,60 @@ function getActionColor(actionType: string, colors: ThemeColors): string {
 
 export default function ActivityLogScreen() {
   const { colors, isDark } = useTheme();
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [logs, setLogs] = useState<(ActivityLog & { userName?: string | null })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<ActionFilter>('all');
   const [hasMore, setHasMore] = useState(true);
+  const profileCache = useRef<Record<string, string | null>>({});
   const pageRef = useRef(0);
   const PAGE_SIZE = 30;
 
   const load = async (reset = false) => {
-    const currentPage = reset ? 0 : pageRef.current;
-    const from = currentPage * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    try {
+      const currentPage = reset ? 0 : pageRef.current;
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-    const { data } = await supabase
-      .from('activity_log')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .range(from, to);
+      const { data } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .range(from, to);
 
-    const rows = (data ?? []) as ActivityLog[];
-    if (reset) {
-      setLogs(rows);
-      pageRef.current = 1;
-    } else {
-      setLogs((prev) => [...prev, ...rows]);
-      pageRef.current += 1;
+      const rows = (data ?? []) as ActivityLog[];
+
+      // Resolve user names for entries that have user_id
+      const unknownIds = [...new Set(rows.map((r) => r.user_id).filter((uid): uid is string => !!uid && !(uid in profileCache.current)))];
+      if (unknownIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', unknownIds);
+        for (const p of profiles ?? []) {
+          profileCache.current[p.id] = p.full_name;
+        }
+      }
+
+      const enriched = rows.map((r) => ({
+        ...r,
+        userName: r.user_id ? (profileCache.current[r.user_id] ?? null) : null,
+      }));
+
+      if (reset) {
+        setLogs(enriched);
+        pageRef.current = 1;
+      } else {
+        setLogs((prev) => [...prev, ...enriched]);
+        pageRef.current += 1;
+      }
+      setHasMore(rows.length === PAGE_SIZE);
+    } catch (e) {
+      console.error('Failed to load activity log:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setHasMore(rows.length === PAGE_SIZE);
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -171,13 +195,18 @@ export default function ActivityLogScreen() {
   );
 }
 
-function ActivityLogRow({ log, colors, isDark }: { log: ActivityLog; colors: ThemeColors; isDark: boolean }) {
+function ActivityLogRow({ log, colors, isDark }: { log: ActivityLog & { userName?: string | null }; colors: ThemeColors; isDark: boolean }) {
   const actionColor = getActionColor(log.action_type, colors);
-  const details = log.details as Record<string, any>;
+  const details = (log.details ?? {}) as Record<string, any>;
   const itemName = (details?.item_name ?? details?.name) as string | undefined;
   const pickListName = details?.pick_list_name as string | undefined;
+  const userName = log.userName ?? null;
+  const isPickListAction = log.action_type.startsWith('pick_list_') || log.action_type === 'item_picked';
   const quantity = details?.quantity as number | undefined;
   const remaining = details?.inventory_remaining as number | undefined;
+  const oldQty = details?.old_qty as number | undefined;
+  const newQty = details?.new_qty as number | undefined;
+  const qtyChange = oldQty != null && newQty != null ? newQty - oldQty : null;
 
   return (
     <TouchableOpacity
@@ -212,23 +241,21 @@ function ActivityLogRow({ log, colors, isDark }: { log: ActivityLog; colors: The
                 {itemName ?? pickListName}
               </Text>
             )}
-            {details?.old_qty != null && details?.new_qty != null && (
-              (() => {
-                const change = details.new_qty - details.old_qty;
-                const isPositive = change > 0;
-                const changeColor = isPositive ? colors.success : colors.destructive;
-                return (
-                  <Text className="text-xs font-semibold mt-0.5" style={{ color: changeColor }}>
-                    {isPositive ? '+' : ''}{change} (was {details.old_qty}, now {details.new_qty})
-                  </Text>
-                );
-              })()
+            {qtyChange != null && (
+              <Text className="text-xs font-semibold mt-0.5" style={{ color: qtyChange > 0 ? colors.success : colors.destructive }}>
+                {qtyChange > 0 ? '+' : ''}{qtyChange} (was {oldQty}, now {newQty})
+              </Text>
             )}
           </>
         )}
       </View>
 
       <View className="items-end gap-1">
+        {isPickListAction && userName && (
+          <Text className="text-[10px] font-semibold" style={{ color: colors.accent }}>
+            {userName}
+          </Text>
+        )}
         <Text className="text-xs" style={{ color: colors.textSecondary }}>
           {formatRelativeTime(log.timestamp)}
         </Text>

@@ -12,9 +12,12 @@ import {
   CheckCheck,
   ClipboardList,
   Package,
+  Trash2,
+  X,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   RefreshControl,
   Text,
@@ -90,6 +93,7 @@ export default function NotificationsScreen() {
     switch (type) {
       case 'low_stock': return <AlertTriangle color={colors.warning} size={18} />;
       case 'pick_list': return <ClipboardList color={colors.statusReady} size={18} />;
+      case 'pick_list_issue': return <AlertTriangle color={colors.warning} size={18} />;
       case 'item': return <Package color={colors.accent} size={18} />;
       default: return <Bell color={colors.accent} size={18} />;
     }
@@ -99,9 +103,30 @@ export default function NotificationsScreen() {
     switch (type) {
       case 'low_stock': return colors.warningMuted;
       case 'pick_list': return `${colors.statusReady}22`;
+      case 'pick_list_issue': return colors.warningMuted;
       case 'item': return colors.accentMuted;
       default: return colors.accentMuted;
     }
+  };
+
+  const dismissNotification = async (notifId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+    await supabase.from('notifications').delete().eq('id', notifId);
+  };
+
+  const clearAll = () => {
+    if (!user || notifications.length === 0) return;
+    Alert.alert('Clear All', 'Delete all notifications?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear All',
+        style: 'destructive',
+        onPress: async () => {
+          setNotifications([]);
+          await supabase.from('notifications').delete().eq('user_id', user.id);
+        },
+      },
+    ]);
   };
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -115,6 +140,14 @@ export default function NotificationsScreen() {
         <Text className="flex-1 text-lg font-bold" style={{ color: colors.textPrimary }}>
           Notifications
         </Text>
+        {notifications.length > 0 && (
+          <TouchableOpacity
+            onPress={clearAll}
+            className="rounded-xl p-2 mr-1"
+            style={{ backgroundColor: colors.destructiveMuted }}>
+            <Trash2 color={colors.destructive} size={16} />
+          </TouchableOpacity>
+        )}
         {unreadCount > 0 && (
           <TouchableOpacity
             onPress={markAllRead}
@@ -149,26 +182,30 @@ export default function NotificationsScreen() {
             <TouchableOpacity
               onPress={() => handlePress(notif)}
               className="mb-2 flex-row items-start rounded-2xl px-4 py-3"
-              style={{
-                ...cardStyle,
-                opacity: notif.is_read ? 0.7 : 1,
-              }}>
+              style={cardStyle}>
               <View
                 className="items-center justify-center rounded-xl mt-0.5 mr-3"
                 style={{ width: 36, height: 36, backgroundColor: getNotifIconBg(notif.type) }}>
                 {getNotifIcon(notif.type)}
               </View>
-              <View className="flex-1">
-                <View className="flex-row items-center gap-2">
-                  <Text className="font-semibold text-sm flex-1" style={{ color: colors.textPrimary }}>
+              <View className="flex-1" style={{ flexShrink: 1 }}>
+                <View className="flex-row items-start gap-2">
+                  <Text className="font-semibold text-sm" style={{ color: colors.textPrimary, flex: 1, flexWrap: 'wrap' }}>
                     {notif.title}
                   </Text>
                   {!notif.is_read && (
-                    <View className="rounded-full" style={{ width: 8, height: 8, backgroundColor: colors.accent }} />
+                    <View className="rounded-full mt-1.5" style={{ width: 8, height: 8, backgroundColor: colors.accent, flexShrink: 0 }} />
                   )}
+                  <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation(); dismissNotification(notif.id); }}
+                    hitSlop={8}
+                    className="rounded-lg p-1"
+                    style={{ backgroundColor: colors.background, flexShrink: 0 }}>
+                    <X color={colors.textSecondary} size={12} />
+                  </TouchableOpacity>
                 </View>
                 {notif.message && (
-                  <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }} numberOfLines={2}>
+                  <Text className="text-xs mt-1" style={{ color: colors.textSecondary, flexWrap: 'wrap' }}>
                     {notif.message}
                   </Text>
                 )}

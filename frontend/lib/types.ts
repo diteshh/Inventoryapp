@@ -328,6 +328,8 @@ export interface Database {
           role: 'owner' | 'admin' | 'member';
           pin_hash: string | null;
           department: string | null;
+          business_name: string | null;
+          business_address: string | null;
           permissions: Json | null;
           created_at: string;
           updated_at: string;
@@ -339,6 +341,8 @@ export interface Database {
           role?: 'owner' | 'admin' | 'member';
           pin_hash?: string | null;
           department?: string | null;
+          business_name?: string | null;
+          business_address?: string | null;
           permissions?: Json | null;
           created_at?: string;
           updated_at?: string;
@@ -350,6 +354,8 @@ export interface Database {
           role?: 'owner' | 'admin' | 'member';
           pin_hash?: string | null;
           department?: string | null;
+          business_name?: string | null;
+          business_address?: string | null;
           permissions?: Json | null;
           updated_at?: string;
         };
@@ -716,6 +722,62 @@ export interface Database {
           },
         ];
       };
+      pick_list_issues: {
+        Row: {
+          id: string;
+          pick_list_id: string;
+          pick_list_item_id: string;
+          issue_type: string;
+          quantity_affected: number;
+          quantity_actually_picked: number;
+          notes: string | null;
+          reported_by: string | null;
+          team_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pick_list_id: string;
+          pick_list_item_id: string;
+          issue_type: string;
+          quantity_affected?: number;
+          quantity_actually_picked?: number;
+          notes?: string | null;
+          reported_by?: string | null;
+          team_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pick_list_id?: string;
+          pick_list_item_id?: string;
+          issue_type?: string;
+          quantity_affected?: number;
+          quantity_actually_picked?: number;
+          notes?: string | null;
+          reported_by?: string | null;
+          team_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pick_list_issues_pick_list_id_fkey';
+            columns: ['pick_list_id'];
+            isOneToOne: false;
+            referencedRelation: 'pick_lists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pick_list_issues_pick_list_item_id_fkey';
+            columns: ['pick_list_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'pick_list_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       team_invites: {
         Row: {
           id: string;
@@ -810,6 +872,14 @@ export type PurchaseOrder = Database['public']['Tables']['purchase_orders']['Row
 export type PurchaseOrderItem = Database['public']['Tables']['purchase_order_items']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
 export type Transaction = Database['public']['Tables']['transactions']['Row'];
+export type PickListIssue = Database['public']['Tables']['pick_list_issues']['Row'];
+
+export type PickListIssueType =
+  | 'damaged_stock'
+  | 'missing_unit'
+  | 'wrong_stock_at_location'
+  | 'barcode_mismatch'
+  | 'other';
 
 export type PickListStatus =
   | 'draft'

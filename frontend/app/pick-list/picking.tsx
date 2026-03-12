@@ -6,7 +6,7 @@ import type { ThemeColors } from '@/lib/theme-context';
 import type { Item, PickList, PickListItem } from '@/lib/types';
 import { logActivity } from '@/lib/utils';
 import { impactLight, impactMedium, notificationSuccess, notificationError } from '@/lib/haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   CheckCircle,
@@ -17,8 +17,9 @@ import {
   FlashlightOff,
   X,
   ClipboardCheck,
+  AlertTriangle,
 } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -120,6 +121,26 @@ export default function GuidedPickingScreen() {
       if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
     };
   }, []);
+
+  // When returning from report-issue, check for a reported issue signal via AsyncStorage
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const stored = await AsyncStorage.getItem('reported_issue');
+        if (!stored) return;
+        await AsyncStorage.removeItem('reported_issue');
+        try {
+          const { pickListItemId, qty } = JSON.parse(stored);
+          setLocalPicks((prev) => ({ ...prev, [pickListItemId]: qty }));
+          setTransitioning(true);
+          setTimeout(() => advanceToNext(), 300);
+        } catch {
+          // ignore parse errors
+        }
+      })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   const currentItem = unpickedItems[currentIndex] ?? null;
 
@@ -318,6 +339,50 @@ export default function GuidedPickingScreen() {
         });
       }
 
+      // Notify owners/admins if there are reported issues
+      try {
+        const { data: issueRows } = await supabase
+          .from('pick_list_issues')
+          .select('*, pick_list_items(items(name))')
+          .eq('pick_list_id', pickList.id);
+
+        if (issueRows && issueRows.length > 0) {
+          // Get owner/admin team members + always include the picker
+          const recipientSet = new Set<string>([user.id]);
+          if (teamId) {
+            const { data: members } = await supabase
+              .from('team_members')
+              .select('user_id')
+              .eq('team_id', teamId)
+              .in('role', ['owner', 'admin']);
+            if (members) {
+              for (const m of members) recipientSet.add(m.user_id);
+            }
+          }
+          const recipients = [...recipientSet];
+
+          if (recipients.length > 0) {
+            const issueLines = (issueRows as any[]).map((iss) => {
+              const itemName = iss.pick_list_items?.items?.name ?? 'Unknown item';
+              const typeLabel = (iss.issue_type as string).replace(/_/g, ' ');
+              return `• ${itemName}: ${typeLabel} (picked ${iss.quantity_actually_picked}/${iss.quantity_affected + iss.quantity_actually_picked})`;
+            });
+
+            const notifications = recipients.map((uid) => ({
+              user_id: uid,
+              type: 'pick_list_issue',
+              title: `Issues reported on "${pickList.name}"`,
+              message: issueLines.join('\n'),
+              related_pick_list_id: pickList.id,
+            }));
+
+            await supabase.from('notifications').insert(notifications);
+          }
+        }
+      } catch {
+        // Non-critical — don't block completion if notifications fail
+      }
+
       notificationSuccess();
       router.back();
     } catch (e) {
@@ -512,12 +577,25 @@ export default function GuidedPickingScreen() {
         <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
           Item {currentIndex + 1} of {totalItems}
         </Text>
-        <TouchableOpacity
-          onPress={handleExit}
-          className="rounded-xl p-2"
-          style={{ backgroundColor: colors.surface }}>
-          <X color={colors.textPrimary} size={18} />
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={() => {
+              if (!currentItem) return;
+              router.push(
+                `/pick-list/report-issue?pickListId=${pickListId}&pickListItemId=${currentItem.id}&itemName=${encodeURIComponent(currentItem.items?.name ?? 'Unknown Item')}&quantityRequested=${remainingQty}&alreadyPicked=${localPicks[currentItem.id] ?? currentItem.quantity_picked}`
+              );
+            }}
+            className="rounded-xl p-2"
+            style={{ backgroundColor: colors.warningMuted }}>
+            <AlertTriangle color={colors.warning} size={18} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleExit}
+            className="rounded-xl p-2"
+            style={{ backgroundColor: colors.surface }}>
+            <X color={colors.textPrimary} size={18} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Progress bar */}
@@ -540,51 +618,51 @@ export default function GuidedPickingScreen() {
 
       {/* Item details card */}
       <View
-        className="mx-5 mb-4 rounded-2xl p-5"
+        className="mx-5 mb-6 rounded-2xl p-5"
         style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isDark ? colors.border : colors.borderLight, ...getCardShadow(isDark) }}>
-        {/* Large item image */}
-        <View className="flex-row gap-4">
-          {itemPhoto ? (
-            <Image
-              source={{ uri: itemPhoto }}
-              style={{ width: 160, height: 160, borderRadius: 14, backgroundColor: colors.background }}
-              resizeMode="contain"
-            />
-          ) : (
-            <View
-              className="items-center justify-center rounded-xl"
-              style={{ width: 160, height: 160, backgroundColor: colors.background }}>
-              <Package color={colors.textSecondary} size={36} />
-            </View>
-          )}
-          <View className="flex-1">
-            <Text className="text-lg font-bold" numberOfLines={2} style={{ color: colors.textPrimary }}>
+        {/* Item image — full width */}
+        {itemPhoto ? (
+          <Image
+            source={{ uri: itemPhoto }}
+            style={{ width: '100%', height: 200, borderRadius: 14, backgroundColor: colors.background, marginBottom: 14 }}
+            resizeMode="contain"
+          />
+        ) : (
+          <View
+            className="items-center justify-center rounded-xl mb-3"
+            style={{ width: '100%', height: 140, backgroundColor: colors.background }}>
+            <Package color={colors.textSecondary} size={44} />
+          </View>
+        )}
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1 mr-3">
+            <Text className="text-xl font-bold" numberOfLines={2} style={{ color: colors.textPrimary }}>
               {currentItem.items?.name ?? 'Unknown Item'}
             </Text>
             {currentItem.items?.sku && (
-              <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                 SKU: {currentItem.items.sku}
               </Text>
             )}
             {location && (
-              <Text className="text-xs mt-0.5" style={{ color: colors.accent }}>
+              <Text className="text-sm mt-1" style={{ color: colors.accent }}>
                 {'\uD83D\uDCCD'} {location}
               </Text>
             )}
-            <View className="flex-row items-baseline gap-1 mt-2">
-              <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
-                {remainingQty}
-              </Text>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                to pick
-              </Text>
-            </View>
+          </View>
+          <View className="items-end">
+            <Text className="text-3xl font-bold" style={{ color: colors.textPrimary }}>
+              {remainingQty}
+            </Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              to pick
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Camera / Scan area */}
-      <View className="flex-1 mx-5 mb-4">
+      <View className="mx-5 mb-4">
         {showCamera && CameraView ? (
           <CameraComponent
             flashOn={flashOn}
@@ -620,6 +698,9 @@ export default function GuidedPickingScreen() {
           </View>
         )}
       </View>
+
+      {/* Spacer to push verify button down */}
+      <View className="flex-1" />
 
       {/* Bottom: Verify Manually button */}
       <View className="px-5 pb-8">

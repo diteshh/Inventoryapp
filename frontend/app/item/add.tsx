@@ -21,7 +21,18 @@ import {
   Tag as TagIcon,
   Trash2,
   X,
+  ChevronRight,
+  Type,
+  AlignLeft,
+  Hash,
+  CheckSquare,
+  ChevronDown,
+  Calendar,
+  Phone,
+  Link,
+  Mail,
 } from 'lucide-react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -50,7 +61,33 @@ if (Platform.OS !== 'web') {
     // Camera not available
   }
 }
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+interface CustomField {
+  name: string;
+  type: string;
+  value: any;
+  options?: string[];
+  placeholder?: string;
+}
+
+const FIELD_TYPES = [
+  { key: 'small_text', label: 'Small Text Box', icon: Type },
+  { key: 'large_text', label: 'Large Text Box', icon: AlignLeft },
+  { key: 'number', label: 'Number', icon: Hash },
+  { key: 'checkbox', label: 'Checkbox', icon: CheckSquare },
+  { key: 'dropdown', label: 'Dropdown', icon: ChevronDown },
+  { key: 'date', label: 'Date', icon: Calendar },
+  { key: 'phone', label: 'Phone Number', icon: Phone },
+  { key: 'web_link', label: 'Web Link', icon: Link },
+  { key: 'email', label: 'Email', icon: Mail },
+] as const;
+
+function getDefaultValue(type: string): any {
+  if (type === 'checkbox') return false;
+  if (type === 'number') return '';
+  return '';
+}
 
 interface ItemForm {
   name: string;
@@ -88,6 +125,7 @@ export default function AddEditItemScreen() {
   const { user } = useAuth();
   const { teamId } = useTeam();
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const isEdit = !!id;
   const [form, setForm] = useState<ItemForm>({
     ...EMPTY_FORM,
@@ -107,6 +145,14 @@ export default function AddEditItemScreen() {
   const [scannerFlash, setScannerFlash] = useState(false);
   const [scannerScanned, setScannerScanned] = useState(false);
   const [camPermission, requestCamPermission] = useCameraPermissions?.() ?? [null, () => {}];
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [showFieldTypePicker, setShowFieldTypePicker] = useState(false);
+  const [showFieldConfig, setShowFieldConfig] = useState(false);
+  const [pendingFieldType, setPendingFieldType] = useState<string | null>(null);
+  const [fieldNameInput, setFieldNameInput] = useState('');
+  const [fieldDefaultValue, setFieldDefaultValue] = useState('');
+  const [fieldPlaceholder, setFieldPlaceholder] = useState('');
+  const [dropdownOptionsInput, setDropdownOptionsInput] = useState('');
 
   useEffect(() => {
     supabase.from('tags').select('*').order('name').then(({ data }) => setAllTags((data ?? []) as Tag[]));
@@ -135,6 +181,11 @@ export default function AddEditItemScreen() {
             folder_id: item.folder_id,
           });
           setPhotos(item.photos ?? []);
+          // Load custom fields
+          if (item.custom_fields) {
+            const cf = Array.isArray(item.custom_fields) ? item.custom_fields : [];
+            setCustomFields(cf as unknown as CustomField[]);
+          }
         }
       });
       supabase.from('item_tags').select('tag_id, tags(*)').eq('item_id', id).then(({ data }) => {
@@ -232,6 +283,7 @@ export default function AddEditItemScreen() {
       notes: form.notes.trim() || null,
       folder_id: form.folder_id,
       photos,
+      custom_fields: (customFields.length > 0 ? customFields : null) as any,
       updated_at: new Date().toISOString(),
       created_by: user?.id,
     };
@@ -441,6 +493,42 @@ export default function AddEditItemScreen() {
           <FormSection title="Notes" colors={colors} isDark={isDark}>
             <FormField label="" value={form.notes} onChangeText={(v) => f('notes', v)} placeholder="Additional notes..." multiline colors={colors} />
           </FormSection>
+
+          {/* Custom Fields */}
+          <FormSection title="Custom Fields" colors={colors} isDark={isDark}>
+            {customFields.map((field, index) => (
+              <View key={index}>
+                <View className="flex-row items-center justify-between mb-1.5">
+                  <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+                    {field.name}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setCustomFields((prev) => prev.filter((_, i) => i !== index))}
+                    hitSlop={8}>
+                    <X color={colors.destructive} size={14} />
+                  </TouchableOpacity>
+                </View>
+                <CustomFieldInput
+                  field={field}
+                  colors={colors}
+                  isDark={isDark}
+                  onChange={(value) => {
+                    setCustomFields((prev) => prev.map((f, i) => (i === index ? { ...f, value } : f)));
+                  }}
+                />
+              </View>
+            ))}
+            <TouchableOpacity
+              onPress={() => {
+                setPendingFieldType(null);
+                setShowFieldTypePicker(true);
+              }}
+              className="flex-row items-center justify-center gap-2 rounded-xl py-3"
+              style={{ backgroundColor: colors.accentMuted, borderWidth: 1, borderColor: `${colors.accent}44`, borderStyle: 'dashed' }}>
+              <Plus color={colors.accent} size={16} />
+              <Text className="text-sm font-medium" style={{ color: colors.accent }}>Add Custom Field</Text>
+            </TouchableOpacity>
+          </FormSection>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -603,7 +691,393 @@ export default function AddEditItemScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      {/* Field Type Picker (bottom sheet) */}
+      <Modal visible={showFieldTypePicker} animationType="slide" transparent>
+        <View className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.surface, maxHeight: '80%' }}>
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Choose Field Type</Text>
+              <TouchableOpacity onPress={() => setShowFieldTypePicker(false)}>
+                <X color={colors.textSecondary} size={20} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {FIELD_TYPES.map((ft) => {
+                const Icon = ft.icon;
+                return (
+                  <TouchableOpacity
+                    key={ft.key}
+                    onPress={() => {
+                      setPendingFieldType(ft.key);
+                      setFieldNameInput('');
+                      setFieldDefaultValue('');
+                      setFieldPlaceholder('');
+                      setDropdownOptionsInput('');
+                      setShowFieldTypePicker(false);
+                      setShowFieldConfig(true);
+                    }}
+                    className="mb-2 flex-row items-center gap-3 rounded-xl px-4 py-3.5"
+                    style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                    <Icon color={colors.accent} size={18} />
+                    <Text className="flex-1 text-sm font-medium" style={{ color: colors.textPrimary }}>{ft.label}</Text>
+                    <ChevronRight color={colors.textSecondary} size={16} />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Field Configuration (full screen) */}
+      <Modal visible={showFieldConfig} animationType="slide" onRequestClose={() => setShowFieldConfig(false)}>
+        <View className="flex-1" style={{ backgroundColor: colors.background, paddingTop: insets.top }}>
+          {/* Header */}
+          <View>
+            <View className="flex-row items-center px-5 py-3" style={{ position: 'relative', minHeight: 44 }}>
+              <TouchableOpacity
+                onPress={() => setShowFieldConfig(false)}
+                className="rounded-xl p-2"
+                style={{ backgroundColor: colors.surface, borderWidth: isDark ? 1 : 0, borderColor: isDark ? colors.borderLight : 'transparent', ...getCardShadow(isDark), zIndex: 1 }}>
+                <ArrowLeft color={colors.textPrimary} size={20} />
+              </TouchableOpacity>
+              <Text className="text-lg font-bold" style={{ color: colors.textPrimary, position: 'absolute', left: 0, right: 0, textAlign: 'center' }}>
+                Create Custom Field
+              </Text>
+            </View>
+            <View className="px-5 pb-2">
+              <Text className="text-sm" style={{ color: colors.accent }}>
+                {FIELD_TYPES.find((ft) => ft.key === pendingFieldType)?.label ?? 'Custom Field'}
+              </Text>
+            </View>
+          </View>
+
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+              {/* Field Name & Default Value */}
+              <View className="px-5 mt-4">
+                <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Field Name</Text>
+                <TextInput
+                  className="rounded-xl px-4 py-3.5 text-sm mb-4"
+                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+                  placeholder="Enter Field Name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={fieldNameInput}
+                  onChangeText={setFieldNameInput}
+                  autoFocus
+                />
+
+                {pendingFieldType === 'dropdown' ? (
+                  <>
+                    <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Options (comma-separated)</Text>
+                    <TextInput
+                      className="rounded-xl px-4 py-3.5 text-sm mb-4"
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+                      placeholder="e.g. Small, Medium, Large"
+                      placeholderTextColor={colors.textSecondary}
+                      value={dropdownOptionsInput}
+                      onChangeText={setDropdownOptionsInput}
+                    />
+                  </>
+                ) : pendingFieldType === 'checkbox' ? null : (
+                  <>
+                    <Text className="mb-1.5 text-xs font-medium" style={{ color: colors.textSecondary }}>Placeholder Text</Text>
+                    <TextInput
+                      className="rounded-xl px-4 py-3.5 text-sm"
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+                      placeholder="Optional"
+                      placeholderTextColor={colors.textSecondary}
+                      value={fieldPlaceholder}
+                      onChangeText={setFieldPlaceholder}
+                    />
+                  </>
+                )}
+              </View>
+
+              {/* Separator */}
+              <View className="my-5" style={{ height: 1, backgroundColor: colors.border }} />
+
+              {/* Field Preview */}
+              <View className="px-5">
+                <Text className="mb-3 text-xs font-bold uppercase tracking-wider" style={{ color: colors.textPrimary }}>
+                  Field Preview
+                </Text>
+                <View className="rounded-2xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <Text className="mb-2 text-xs font-medium" style={{ color: colors.textSecondary }}>
+                    {fieldNameInput.trim() || 'Field Name'}
+                  </Text>
+                  {pendingFieldType === 'checkbox' ? (
+                    <View className="flex-row items-center gap-3 rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <View
+                        className="items-center justify-center rounded-md"
+                        style={{ width: 22, height: 22, borderWidth: 2, borderColor: colors.textSecondary }}
+                      />
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>No</Text>
+                    </View>
+                  ) : pendingFieldType === 'dropdown' ? (
+                    <View className="flex-row flex-wrap gap-2">
+                      {(dropdownOptionsInput.split(',').map((o) => o.trim()).filter(Boolean).length > 0
+                        ? dropdownOptionsInput.split(',').map((o) => o.trim()).filter(Boolean)
+                        : ['Option 1', 'Option 2']
+                      ).map((opt, i) => (
+                        <View
+                          key={i}
+                          className="rounded-full px-3.5 py-2"
+                          style={{ backgroundColor: i === 0 ? colors.accentMuted : colors.background, borderWidth: 1, borderColor: i === 0 ? colors.accent : colors.border }}>
+                          <Text className="text-sm" style={{ color: i === 0 ? colors.accent : colors.textPrimary }}>{opt}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : pendingFieldType === 'date' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'YYYY-MM-DD'}</Text>
+                    </View>
+                  ) : pendingFieldType === 'phone' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'Phone number'}</Text>
+                    </View>
+                  ) : pendingFieldType === 'web_link' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'https://...'}</Text>
+                    </View>
+                  ) : pendingFieldType === 'email' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'email@example.com'}</Text>
+                    </View>
+                  ) : pendingFieldType === 'number' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || '0'}</Text>
+                    </View>
+                  ) : pendingFieldType === 'large_text' ? (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, minHeight: 80 }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'Enter text...'}</Text>
+                    </View>
+                  ) : (
+                    <View className="rounded-xl px-4 py-3.5" style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{fieldPlaceholder.trim() || 'Enter text...'}</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+            </ScrollView>
+
+          {/* Create Field Button - pinned to bottom */}
+          <View className="px-5 pt-3" style={{ paddingBottom: Math.max(insets.bottom, 16), backgroundColor: colors.background, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (!fieldNameInput.trim() || !pendingFieldType) return;
+                const newField: CustomField = {
+                  name: fieldNameInput.trim(),
+                  type: pendingFieldType,
+                  value: fieldDefaultValue || getDefaultValue(pendingFieldType),
+                };
+                if (pendingFieldType === 'checkbox') {
+                  newField.value = false;
+                }
+                if (pendingFieldType === 'dropdown') {
+                  newField.options = dropdownOptionsInput.split(',').map((o) => o.trim()).filter(Boolean);
+                  if (newField.options.length > 0) newField.value = newField.options[0];
+                }
+                if (fieldPlaceholder.trim()) {
+                  newField.placeholder = fieldPlaceholder.trim();
+                }
+                setCustomFields((prev) => [...prev, newField]);
+                setShowFieldConfig(false);
+              }}
+              disabled={!fieldNameInput.trim()}
+              className="items-center justify-center rounded-xl py-4"
+              style={{ backgroundColor: fieldNameInput.trim() ? colors.accent : colors.border }}>
+              <Text className="text-base font-bold" style={{ color: fieldNameInput.trim() ? colors.accentOnAccent : colors.textSecondary }}>
+                Create Field
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function CustomFieldInput({ field, colors, onChange, isDark }: { field: CustomField; colors: ThemeColors; onChange: (value: any) => void; isDark?: boolean }) {
+  const ph = field.placeholder;
+  switch (field.type) {
+    case 'small_text':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+          placeholder={ph || 'Enter text...'}
+          placeholderTextColor={colors.textSecondary}
+          value={field.value ?? ''}
+          onChangeText={onChange}
+          maxLength={190}
+        />
+      );
+    case 'large_text':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top' }}
+          placeholder={ph || 'Enter text...'}
+          placeholderTextColor={colors.textSecondary}
+          value={field.value ?? ''}
+          onChangeText={onChange}
+          multiline
+          maxLength={4000}
+        />
+      );
+    case 'number':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+          placeholder={ph || '0'}
+          placeholderTextColor={colors.textSecondary}
+          value={String(field.value ?? '')}
+          onChangeText={onChange}
+          keyboardType="decimal-pad"
+        />
+      );
+    case 'checkbox':
+      return (
+        <Pressable
+          onPress={() => onChange(!field.value)}
+          className="flex-row items-center gap-3 rounded-xl px-4 py-3.5"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+          <View
+            className="items-center justify-center rounded-md"
+            style={{ width: 22, height: 22, backgroundColor: field.value ? colors.accent : 'transparent', borderWidth: field.value ? 0 : 2, borderColor: colors.textSecondary }}>
+            {field.value && <Text style={{ color: colors.accentOnAccent, fontSize: 14, fontWeight: '700' }}>✓</Text>}
+          </View>
+          <Text className="text-sm" style={{ color: colors.textPrimary }}>{field.value ? 'Yes' : 'No'}</Text>
+        </Pressable>
+      );
+    case 'dropdown':
+      return (
+        <View className="flex-row flex-wrap gap-2">
+          {(field.options ?? []).map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              onPress={() => onChange(opt)}
+              className="rounded-full px-3.5 py-2"
+              style={{
+                backgroundColor: field.value === opt ? colors.accentMuted : colors.background,
+                borderWidth: 1,
+                borderColor: field.value === opt ? colors.accent : colors.border,
+              }}>
+              <Text className="text-sm" style={{ color: field.value === opt ? colors.accent : colors.textPrimary }}>{opt}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    case 'date':
+      return <DateFieldInput field={field} colors={colors} onChange={onChange} isDark={isDark} />;
+    case 'phone':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+          placeholder={ph || 'Phone number'}
+          placeholderTextColor={colors.textSecondary}
+          value={field.value ?? ''}
+          onChangeText={onChange}
+          keyboardType="phone-pad"
+        />
+      );
+    case 'web_link':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+          placeholder={ph || 'https://...'}
+          placeholderTextColor={colors.textSecondary}
+          value={field.value ?? ''}
+          onChangeText={onChange}
+          keyboardType="url"
+          autoCapitalize="none"
+        />
+      );
+    case 'email':
+      return (
+        <TextInput
+          className="rounded-xl px-4 py-3.5 text-sm"
+          style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary }}
+          placeholder={ph || 'email@example.com'}
+          placeholderTextColor={colors.textSecondary}
+          value={field.value ?? ''}
+          onChangeText={onChange}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+      );
+    default:
+      return null;
+  }
+}
+
+function DateFieldInput({ field, colors, onChange, isDark }: { field: CustomField; colors: ThemeColors; onChange: (value: any) => void; isDark?: boolean }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const currentDate = field.value ? new Date(field.value) : new Date();
+  const isValidDate = field.value && !isNaN(new Date(field.value).getTime());
+
+  const formatDisplayDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <View>
+      <TouchableOpacity
+        onPress={() => setShowPicker(true)}
+        className="flex-row items-center justify-between rounded-xl px-4 py-3.5"
+        style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}>
+        <Text className="text-sm" style={{ color: isValidDate ? colors.textPrimary : colors.textSecondary }}>
+          {isValidDate ? formatDisplayDate(field.value) : (field.placeholder || 'Select date')}
+        </Text>
+        <Calendar color={colors.textSecondary} size={16} />
+      </TouchableOpacity>
+      {showPicker && (
+        Platform.OS === 'ios' ? (
+          <Modal visible transparent animationType="slide">
+            <View className="flex-1 justify-end" style={{ backgroundColor: colors.overlay }}>
+              <View className="rounded-t-3xl p-6" style={{ backgroundColor: colors.background }}>
+                <View className="mb-2 flex-row items-center justify-between">
+                  <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>Select Date</Text>
+                  <TouchableOpacity onPress={() => setShowPicker(false)}>
+                    <Text className="text-sm font-semibold" style={{ color: colors.accent }}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={isValidDate ? new Date(field.value) : new Date()}
+                  mode="date"
+                  display="inline"
+                  themeVariant={isDark ? 'dark' : 'light'}
+                  accentColor={colors.accent}
+                  onChange={(_event: DateTimePickerEvent, date?: Date) => {
+                    if (date) {
+                      onChange(date.toISOString().split('T')[0]);
+                    }
+                  }}
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={isValidDate ? new Date(field.value) : new Date()}
+            mode="date"
+            display="default"
+            onChange={(event: DateTimePickerEvent, date?: Date) => {
+              setShowPicker(false);
+              if (event.type !== 'dismissed' && date) {
+                onChange(date.toISOString().split('T')[0]);
+              }
+            }}
+          />
+        )
+      )}
+    </View>
   );
 }
 
@@ -631,7 +1105,7 @@ function FormField({
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
-  keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'email-address';
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'email-address' | 'phone-pad' | 'url';
   multiline?: boolean;
   colors: ThemeColors;
 }) {
