@@ -221,3 +221,71 @@ Note: escape `!` in passwords using `\u0021`
 - **Pick Lists:** Active/functional
 - **Stock Counts:** Coming Soon (disabled on workflows page)
 - **Purchase Orders:** Coming Soon (disabled on workflows page)
+
+## Custom Fields (added 2026-03-12)
+
+Items support custom fields via the `custom_fields` JSON column (array format).
+
+### Data Shape
+```json
+[
+  { "name": "Model Number", "type": "small_text", "value": "ABC-123", "placeholder": "Enter model" },
+  { "name": "Fragile", "type": "checkbox", "value": true },
+  { "name": "Size", "type": "dropdown", "value": "Large", "options": ["Small", "Medium", "Large"] }
+]
+```
+
+### Field Types (9 types)
+| Type | Key | Input Control |
+|------|-----|---------------|
+| Small Text Box | `small_text` | TextInput, 190 char max |
+| Large Text Box | `large_text` | TextInput multiline, 4000 char max |
+| Number | `number` | TextInput decimal-pad |
+| Checkbox | `checkbox` | Pressable toggle |
+| Dropdown | `dropdown` | Tappable pill options + comma-separated options config |
+| Date | `date` | Native DateTimePicker (iOS inline, Android default) |
+| Phone Number | `phone` | TextInput phone-pad, tappable in detail view |
+| Web Link | `web_link` | TextInput url keyboard, tappable link in detail view |
+| Email | `email` | TextInput email-address, tappable mailto in detail view |
+
+### Implementation Files
+- **`app/item/add.tsx`** — Custom fields state, "Add Custom Field" button, field type picker (bottom sheet), full-screen field config page (name, placeholder, preview), field value inputs via `CustomFieldInput` component, `DateFieldInput` for native date picker, saves to `custom_fields` column, loads on edit
+- **`app/item/[id].tsx`** — Displays custom fields in detail view with type-appropriate formatting (checkbox as Yes/No, links/emails/phones are tappable via `Linking`)
+
+### Add Custom Field Flow
+1. Tap "Add Custom Field" → bottom sheet with 9 field types
+2. Tap a type → full-screen config page opens with:
+   - Field Name input
+   - Placeholder Text input (optional, not shown for checkbox/dropdown)
+   - Dropdown: comma-separated options input
+   - Live Field Preview section
+   - "Create Field" button pinned at bottom
+3. Field appears in the custom fields list with appropriate input control
+4. Fields saved to `custom_fields` JSON column on item save
+
+### iOS Modal Notes
+- Full-screen config modal uses `useSafeAreaInsets()` for Dynamic Island support (SafeAreaView doesn't work reliably inside Modal)
+- ScrollView handles keyboard instead of KeyboardAvoidingView (avoids page being pushed up)
+
+## Settings / Profile Changes (2026-03-12)
+
+### Removed Tabs
+- **Security tab** (PIN management) — removed from settings
+- **Tags tab** (tag CRUD) — removed from settings (still accessible via More > Tags Management)
+- **Appearance tab** (theme selector) — removed from settings (toggle still on More page)
+
+### Profile Page (`app/settings.tsx`)
+- Single page (no tabs) with avatar, name, role badge
+- **Personal Information** section: Full Name (editable), Email (read-only), Role (read-only)
+- **Business Information** section: Business Name, Business Address (editable)
+- **Edit/Save button** in header toggles between view and edit modes
+- Fields stored in `profiles` table: `business_name`, `business_address`
+
+### Database Migration
+- `20260311100000_profiles_business_fields.sql` — adds `business_name TEXT` and `business_address TEXT` to profiles table
+
+### Migrations (all pushed)
+
+6. `20260306000000_pick_lists_assigned_to_fk.sql` — FK for pick list assignment
+7. `20260311000000_pick_list_issues.sql` — pick list issue reporting
+8. `20260311100000_profiles_business_fields.sql` — business name/address on profiles
