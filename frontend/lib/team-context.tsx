@@ -155,7 +155,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       // Find invite
       const { data: invite, error: inviteError } = await supabase
         .from('team_invites')
-        .select('id, team_id, expires_at, used_by, teams(id, name, created_by, created_at)')
+        .select('id, team_id, expires_at, used_by')
         .eq('invite_code', inviteCode)
         .single();
 
@@ -178,7 +178,21 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
         .update({ used_by: user.id })
         .eq('id', invite.id);
 
-      const team = invite.teams as unknown as Team;
+      // Update profile role to member since they joined an existing team
+      await supabase
+        .from('profiles')
+        .update({ role: 'member', updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      // Fetch team data now that user is a member (RLS allows it)
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams')
+        .select('id, name, created_by, created_at')
+        .eq('id', invite.team_id)
+        .single();
+      if (teamError || !teamData) throw new Error('Failed to load team details');
+
+      const team = teamData as Team;
       setTeams([team]);
       setActiveTeamState(team);
       setRole('member');
@@ -198,6 +212,12 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       .eq('team_id', activeTeam.id)
       .eq('user_id', user.id);
     if (error) throw error;
+
+    // Reset profile role to owner since they're back to personal data
+    await supabase
+      .from('profiles')
+      .update({ role: 'owner', updated_at: new Date().toISOString() })
+      .eq('id', user.id);
 
     setTeams([]);
     setActiveTeamState(null);

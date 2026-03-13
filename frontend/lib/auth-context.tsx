@@ -12,6 +12,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   setPIN: (pin: string) => Promise<void>;
@@ -79,6 +80,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null };
   };
 
+  const signUp = async (email: string, password: string, fullName: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: error as Error | null };
+    // Supabase returns a user with empty identities array if email already exists
+    // (instead of an error, to prevent email enumeration)
+    if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+      return { error: new Error('An account with this email already exists.') };
+    }
+    // Create profile with full name
+    if (data.user) {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        full_name: fullName || null,
+        role: 'owner',
+      });
+    }
+    return { error: null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -127,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         signIn,
+        signUp,
         signOut,
         updateProfile,
         setPIN,

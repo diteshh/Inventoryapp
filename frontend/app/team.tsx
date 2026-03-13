@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Copy,
   Crown,
+  LogOut,
   Shield,
   User,
   UserPlus,
@@ -221,12 +222,37 @@ function NoTeamView({ colors, isDark }: { colors: any; isDark: boolean }) {
 function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
   const { user } = useAuth();
   const { can } = usePermission();
-  const { activeTeam, teamId, generateInviteCode } = useTeam();
+  const { activeTeam, teamId, generateInviteCode, leaveTeam } = useTeam();
   const [members, setMembers] = useState<TeamMemberWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [leavingTeam, setLeavingTeam] = useState(false);
+
+  const handleLeaveTeam = () => {
+    Alert.alert(
+      'Leave Team',
+      `Are you sure you want to leave ${activeTeam?.name}? You will lose access to all team data.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            setLeavingTeam(true);
+            try {
+              await leaveTeam();
+            } catch (e: any) {
+              Alert.alert('Error', e.message ?? 'Failed to leave team');
+            } finally {
+              setLeavingTeam(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const cardStyle = {
     backgroundColor: colors.surface,
@@ -348,10 +374,10 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
         </Text>
         {can('manage_team') && (
           <TouchableOpacity
-            onPress={handleGenerateInvite}
-            disabled={generatingCode}
+            onPress={() => { if (!generatingCode) handleGenerateInvite(); }}
+            activeOpacity={0.8}
             className="flex-row items-center gap-1.5 rounded-xl px-3 py-2"
-            style={{ backgroundColor: colors.accent }}>
+            style={{ backgroundColor: colors.accent, opacity: generatingCode ? 0.7 : 1 }}>
             {generatingCode ? (
               <ActivityIndicator color={colors.accentOnAccent} size="small" />
             ) : (
@@ -374,6 +400,25 @@ function TeamMembersView({ colors, isDark }: { colors: any; isDark: boolean }) {
           keyExtractor={(m) => m.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadMembers(); }} tintColor={colors.accent} />}
+          ListFooterComponent={
+            <TouchableOpacity
+              onPress={handleLeaveTeam}
+              disabled={leavingTeam}
+              activeOpacity={0.8}
+              className="flex-row items-center justify-center gap-2 rounded-xl py-3.5 mt-6"
+              style={{ backgroundColor: `${colors.destructive}18`, borderWidth: 1, borderColor: `${colors.destructive}33` }}>
+              {leavingTeam ? (
+                <ActivityIndicator color={colors.destructive} size="small" />
+              ) : (
+                <>
+                  <LogOut color={colors.destructive} size={16} />
+                  <Text className="font-bold text-sm" style={{ color: colors.destructive }}>
+                    Leave Team
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          }
           ListEmptyComponent={
             <View className="items-center mt-12">
               <Users color={colors.textSecondary} size={32} />

@@ -283,7 +283,7 @@ export default function AddEditItemScreen() {
       notes: form.notes.trim() || null,
       folder_id: form.folder_id,
       photos,
-      custom_fields: (customFields.length > 0 ? customFields : null) as any,
+      custom_fields: (customFields.length > 0 ? customFields : []) as any,
       updated_at: new Date().toISOString(),
       created_by: user?.id,
     };
@@ -293,7 +293,13 @@ export default function AddEditItemScreen() {
       await supabase.from('items').update(payload).eq('id', id);
       await logActivity(user?.id, 'item_updated', { itemId: id, details: { item_name: form.name }, teamId });
     } else {
-      const { data } = await supabase.from('items').insert({ ...payload, status: 'active', team_id: teamId ?? null }).select().single();
+      const { data, error: insertError } = await supabase.from('items').insert({ ...payload, status: 'active', team_id: teamId ?? null }).select().single();
+      if (insertError) {
+        console.error('Item insert error:', insertError, 'teamId:', teamId);
+        Alert.alert('Error', insertError.message || 'Failed to save item.');
+        setSaving(false);
+        return;
+      }
       itemId = data?.id;
       await logActivity(user?.id, 'item_created', { itemId, details: { item_name: form.name }, teamId });
     }

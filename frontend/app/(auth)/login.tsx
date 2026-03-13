@@ -1,7 +1,8 @@
 import { useAuth } from '@/lib/auth-context';
-import { useTheme, getCardShadow } from '@/lib/theme-context';
+import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/theme-context';
 import { router } from 'expo-router';
-import { Eye, EyeOff, Lock, Mail, Warehouse } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, Mail, User, Warehouse } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -16,13 +17,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen() {
-  const { signIn, hasPIN, hasBiometric, authenticateWithBiometric } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { signIn, signUp } = useAuth();
+  const { colors } = useTheme();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setFullName('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+  };
+
+  const toggleMode = () => {
+    resetForm();
+    setIsSignUp(!isSignUp);
+  };
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
@@ -39,6 +58,53 @@ export default function LoginScreen() {
     }
   };
 
+  const handleSignUp = async () => {
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Please enter your full name.');
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email.');
+      return;
+    }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await signUp(
+      email.trim().toLowerCase(),
+      password,
+      fullName.trim(),
+    );
+    setLoading(false);
+
+    if (error) {
+      if (error.message?.includes('already registered') || error.message?.includes('already been registered')) {
+        Alert.alert('Error', 'An account with this email already exists. Please sign in instead.');
+      } else {
+        Alert.alert('Sign Up Failed', error.message || 'Could not create account.');
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Account Created',
+      'Your account has been created successfully. You can now sign in.',
+      [{ text: 'OK', onPress: () => { resetForm(); setIsSignUp(false); } }],
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView
@@ -50,7 +116,7 @@ export default function LoginScreen() {
           className="flex-1">
           <View className="flex-1 justify-center px-6 py-12">
             {/* Logo & Title */}
-            <View className="mb-12 items-center">
+            <View className="mb-10 items-center">
               <View
                 style={{
                   width: 80,
@@ -73,12 +139,35 @@ export default function LoginScreen() {
                 Imperial Inventory
               </Text>
               <Text className="mt-2 text-center text-sm" style={{ color: colors.textSecondary }}>
-                Warehouse management for your team
+                {isSignUp ? 'Create your account' : 'Warehouse management for your team'}
               </Text>
             </View>
 
             {/* Form */}
             <View className="gap-4">
+              {/* Full Name (sign up only) */}
+              {isSignUp && (
+                <View>
+                  <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>
+                    Full Name
+                  </Text>
+                  <View
+                    className="flex-row items-center rounded-xl px-4 py-3.5"
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <User color={colors.textSecondary} size={18} />
+                    <TextInput
+                      className="ml-3 flex-1 text-base"
+                      style={{ color: colors.textPrimary }}
+                      placeholder="John Doe"
+                      placeholderTextColor={colors.textSecondary}
+                      value={fullName}
+                      onChangeText={setFullName}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
+              )}
+
               {/* Email */}
               <View>
                 <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>
@@ -130,28 +219,57 @@ export default function LoginScreen() {
                 </View>
               </View>
 
-              {/* Sign In Button */}
+              {/* Confirm Password (sign up only) */}
+              {isSignUp && (
+                <View>
+                  <Text className="mb-2 text-sm font-medium" style={{ color: colors.textSecondary }}>
+                    Confirm Password
+                  </Text>
+                  <View
+                    className="flex-row items-center rounded-xl px-4 py-3.5"
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <Lock color={colors.textSecondary} size={18} />
+                    <TextInput
+                      className="ml-3 flex-1 text-base"
+                      style={{ color: colors.textPrimary }}
+                      placeholder="••••••••"
+                      placeholderTextColor={colors.textSecondary}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showPassword}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Action Button */}
               <TouchableOpacity
-                onPress={handleSignIn}
+                onPress={isSignUp ? handleSignUp : handleSignIn}
                 disabled={loading}
+                activeOpacity={0.8}
                 className="mt-2 items-center justify-center rounded-xl py-4"
-                style={{ backgroundColor: colors.accent }}>
+                style={{ backgroundColor: colors.accent, opacity: loading ? 0.7 : 1 }}>
                 {loading ? (
                   <ActivityIndicator color={colors.accentOnAccent} />
                 ) : (
                   <Text className="text-base font-bold" style={{ color: colors.accentOnAccent }}>
-                    Sign In
+                    {isSignUp ? 'Create Account' : 'Sign In'}
                   </Text>
                 )}
               </TouchableOpacity>
             </View>
 
-            {/* Footer note */}
-            <Text
-              className="mt-8 text-center text-xs leading-5"
-              style={{ color: colors.textSecondary }}>
-              Access is invite-only.{'\n'}Contact your administrator to create an account.
-            </Text>
+            {/* Toggle Sign In / Sign Up */}
+            <View className="mt-6 flex-row items-center justify-center">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+              </Text>
+              <TouchableOpacity onPress={toggleMode} activeOpacity={0.7} className="ml-1.5">
+                <Text className="text-sm font-semibold" style={{ color: colors.accent }}>
+                  {isSignUp ? 'Sign In' : 'Sign Up'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
